@@ -43,6 +43,13 @@ def test_hospital_and_sos():
     assert "Dr. Sarah Mitchell" in speed_dial
     print("PASS: Speed dial directory with emergency contacts")
 
+    sim_call_html = c.render_simulated_calling_screen_html("Senior Resident A", "FALL-SIM-911", "Room 01")
+    assert "CLINICAL TRAINING SIMULATION MODE" in sim_call_html
+    assert "911 EMS Medical Dispatch" in sim_call_html
+    assert "Dispatcher Voice Transcript" in sim_call_html
+    assert "speechSynthesis" in sim_call_html
+    print("PASS: Simulated 911 calling screen with recorded voice and simulation disclosure")
+
 def test_alert_manager():
     am = AlertManager()
     res = am.trigger_fall_alert(
@@ -60,3 +67,4 @@ if __name__ == "__main__":
     test_hospital_and_sos()
     test_alert_manager()
     print("ALL TESTS PASSED SUCCESSFULLY!")
+

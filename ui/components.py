@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import base64
 import io
+import math
+import struct
 import wave
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
@@ -813,4 +816,190 @@ def render_client_sentinel_webcam_html() -> str:
         '</script>'
         '</div>'
     )
+
+
+def synthesize_dispatcher_ring_base64() -> str:
+    """
+    Generate in-memory WAV with authentic telephone ringback (440 Hz + 480 Hz)
+    followed by an emergency radio connection squelch beep.
+    """
+    sample_rate = 22050
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+
+        # 1. Phone ring (1.5 seconds of dual-frequency ringback)
+        ring_samples = int(sample_rate * 1.5)
+        for i in range(ring_samples):
+            t = float(i) / sample_rate
+            sample = 0.35 * (math.sin(2.0 * math.pi * 440.0 * t) + math.sin(2.0 * math.pi * 480.0 * t))
+            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
+
+        # 0.25s pause / pick-up click
+        for _ in range(int(sample_rate * 0.25)):
+            wf.writeframes(struct.pack("<h", 0))
+
+        # Radio connect beep (950 Hz chirp, 0.15s)
+        beep_samples = int(sample_rate * 0.15)
+        for i in range(beep_samples):
+            t = float(i) / sample_rate
+            sample = 0.45 * math.sin(2.0 * math.pi * 950.0 * t)
+            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
+
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def render_simulated_calling_screen_html(
+    patient_name: str = "Senior Resident A",
+    incident_id: str = "FALL-911-SIM",
+    room_name: str = "Active Room 01",
+    is_active: bool = True
+) -> str:
+    """
+    Renders realistic emergency phone dialer screen with recorded dispatcher voice.
+    Prominently displays explicit CLINICAL SIMULATION disclosure banner.
+    """
+    if not is_active:
+        return ""
+
+    ring_wav_b64 = synthesize_dispatcher_ring_base64()
+    dispatcher_speech = (
+        f"911 Emergency Dispatch. This is Operator 42. We have received an automated SafeFall AI distress alert "
+        f"for an acute fall event regarding {patient_name} in {room_name}. "
+        f"Medical first responders and ambulance unit are en route to your registered address. "
+        f"Please remain calm and do not attempt to stand abruptly. Can the patient hear my voice? Help is on the way."
+    )
+
+    bars_html = "".join(
+        f'<div style="width:4px; height:{h}px; background:#38BDF8; border-radius:2px; animation:waveBounce 0.8s ease-in-out infinite alternate; animation-delay:{i * 0.1}s"></div>'
+        for i, h in enumerate([10, 22, 14, 28, 18, 30, 16, 26, 12])
+    )
+
+    return (
+        f'<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif; margin:14px 0">'
+        f'<div style="background:#FFFBEB; border:2px solid #F59E0B; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px">'
+        f'<span style="font-size:1.4rem">⚠️</span>'
+        f'<div>'
+        f'<div style="font-size:0.85rem; font-weight:800; color:#B45309">CLINICAL TRAINING SIMULATION MODE &bull; DEMONSTRATION CALL</div>'
+        f'<div style="font-size:0.76rem; color:#92400E">This simulated 911 emergency call uses a recorded voice synthesizer for testing patient reassurance and automated workflow verification. No actual emergency line is connected.</div>'
+        f'</div>'
+        f'</div>'
+        f'<div id="sf_call_card" style="background:#0F172A; color:#FFFFFF; border-radius:18px; padding:24px 20px; box-shadow:0 12px 30px rgba(0,0,0,0.35); text-align:center; max-width:540px; margin:0 auto; position:relative">'
+        f'<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94A3B8; margin-bottom:18px; border-bottom:1px solid #1E293B; padding-bottom:8px">'
+        f'<span>📶 5G &bull; HD Voice &bull; 🔒 Encrypted HIPAA Line</span>'
+        f'<span id="sf_call_status_badge" style="background:#065F46; color:#34D399; padding:2px 8px; border-radius:12px; font-weight:700">● LIVE SIMULATION</span>'
+        f'</div>'
+        f'<div style="width:72px; height:72px; border-radius:50%; background:#DC2626; margin:0 auto 12px auto; display:flex; align-items:center; justify-content:center; font-size:2.2rem; box-shadow:0 0 20px rgba(220,38,38,0.5)">'
+        f'🚑'
+        f'</div>'
+        f'<div style="font-size:1.25rem; font-weight:800; color:#F8FAFC; letter-spacing:-0.01em">911 EMS Medical Dispatch</div>'
+        f'<div style="font-size:0.82rem; color:#94A3B8; margin-top:2px">Automated Trauma Response &bull; Central Division</div>'
+        f'<div id="sf_call_timer" style="font-size:1.05rem; font-weight:700; color:#38BDF8; font-variant-numeric:tabular-nums; margin:8px 0">00:00</div>'
+        f'<div id="sf_waveform" style="display:flex; justify-content:center; align-items:center; gap:4px; height:32px; margin:14px 0">'
+        f'{bars_html}'
+        f'</div>'
+        f'<div id="sf_transcript_box" style="background:#1E293B; border:1px solid #334155; border-radius:10px; padding:12px; margin:14px 0; text-align:left; font-size:0.82rem; color:#E2E8F0; line-height:1.45">'
+        f'<div style="font-size:0.72rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">🎙️ Dispatcher Voice Transcript (Recorded Simulation)</div>'
+        f'<div id="sf_transcript_text" style="font-style:italic">"Connecting to emergency dispatcher audio stream..."</div>'
+        f'</div>'
+        f'<div style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:20px">'
+        f'<button id="sf_btn_mute" onclick="toggleSimMute()" style="background:#334155; color:#F8FAFC; border:none; width:52px; height:52px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center" title="Mute Microphone">🎙️</button>'
+        f'<button id="sf_btn_speaker" onclick="toggleSimSpeaker()" style="background:#334155; color:#F8FAFC; border:none; width:52px; height:52px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center" title="Speakerphone">🔊</button>'
+        f'<button id="sf_btn_hangup" onclick="endSimCall()" style="background:#DC2626; color:#FFFFFF; border:none; width:58px; height:58px; border-radius:50%; font-size:1.5rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(220,38,38,0.5)" title="End Call">📞</button>'
+        f'</div>'
+        f'<div style="margin-top:14px; display:flex; justify-content:center; gap:8px">'
+        f'<button id="sf_btn_replay" onclick="startSimulatedCall()" style="background:transparent; color:#94A3B8; border:1px solid #475569; border-radius:6px; padding:6px 12px; font-size:0.78rem; cursor:pointer; font-weight:600">🔁 Replay Dispatch Call</button>'
+        f'<button onclick="speakDispatcherVoice()" style="background:#1E293B; color:#38BDF8; border:1px solid #38BDF8; border-radius:6px; padding:6px 12px; font-size:0.78rem; cursor:pointer; font-weight:600">🔊 Play Voice Aloud</button>'
+        f'</div>'
+        f'</div>'
+        f'<audio id="sf_ring_audio" autoplay="autoplay" playsinline="playsinline" src="data:audio/wav;base64,{ring_wav_b64}"></audio>'
+        f'<style>'
+        f'@keyframes waveBounce {{ 0% {{ transform: scaleY(0.3); opacity: 0.5; }} 100% {{ transform: scaleY(1.0); opacity: 1.0; }} }}'
+        f'</style>'
+        f'<script>'
+        f'let callActive = true;'
+        f'let callSecs = 0;'
+        f'let callTimerInterval = null;'
+        f'let isMuted = false;'
+        f'let isSpeaker = true;'
+        f'const fullDispatcherSpeech = "{dispatcher_speech}";'
+        f'function formatTime(s) {{'
+        f'  const m = Math.floor(s / 60);'
+        f'  const sec = s % 60;'
+        f'  return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);'
+        f'}};'
+        f'function speakDispatcherVoice() {{'
+        f'  try {{'
+        f'    if("speechSynthesis" in window) {{'
+        f'      window.speechSynthesis.cancel();'
+        f'      const utter = new SpeechSynthesisUtterance(fullDispatcherSpeech);'
+        f'      utter.rate = 0.98;'
+        f'      utter.pitch = 0.95;'
+        f'      window.speechSynthesis.speak(utter);'
+        f'    }}'
+        f'  }} catch(e) {{ console.log(e); }}'
+        f'}};'
+        f'function startSimulatedCall() {{'
+        f'  callActive = true;'
+        f'  callSecs = 0;'
+        f'  if(callTimerInterval) clearInterval(callTimerInterval);'
+        f'  const timerEl = document.getElementById("sf_call_timer");'
+        f'  if(timerEl) timerEl.innerText = "00:00";'
+        f'  const badge = document.getElementById("sf_call_status_badge");'
+        f'  if(badge) {{ badge.innerText = "● LIVE SIMULATION"; badge.style.background = "#065F46"; badge.style.color = "#34D399"; }}'
+        f'  const tText = document.getElementById("sf_transcript_text");'
+        f'  if(tText) tText.innerText = "Connecting to emergency dispatcher audio stream...";'
+        f'  const wave = document.getElementById("sf_waveform");'
+        f'  if(wave) wave.style.opacity = "1.0";'
+        f'  const ringAud = document.getElementById("sf_ring_audio");'
+        f'  if(ringAud) {{ ringAud.currentTime = 0; ringAud.play().catch(e => {{}}); }}'
+        f'  callTimerInterval = setInterval(function() {{'
+        f'    if(!callActive) return;'
+        f'    callSecs++;'
+        f'    const el = document.getElementById("sf_call_timer");'
+        f'    if(el) el.innerText = formatTime(callSecs);'
+        f'  }}, 1000);'
+        f'  setTimeout(function() {{'
+        f'    if(!callActive) return;'
+        f'    const tt = document.getElementById("sf_transcript_text");'
+        f'    if(tt) tt.innerText = fullDispatcherSpeech;'
+        f'    speakDispatcherVoice();'
+        f'  }}, 1800);'
+        f'}};'
+        f'function endSimCall() {{'
+        f'  callActive = false;'
+        f'  if(callTimerInterval) clearInterval(callTimerInterval);'
+        f'  if("speechSynthesis" in window) window.speechSynthesis.cancel();'
+        f'  const ringAud = document.getElementById("sf_ring_audio");'
+        f'  if(ringAud) ringAud.pause();'
+        f'  const badge = document.getElementById("sf_call_status_badge");'
+        f'  if(badge) {{ badge.innerText = "CALL COMPLETED"; badge.style.background = "#475569"; badge.style.color = "#CBD5E1"; }}'
+        f'  const tText = document.getElementById("sf_transcript_text");'
+        f'  if(tText) tText.innerText = "Call ended by operator. Emergency response unit status: DISPATCHED. Patient verified stable.";'
+        f'  const wave = document.getElementById("sf_waveform");'
+        f'  if(wave) wave.style.opacity = "0.2";'
+        f'}};'
+        f'function toggleSimMute() {{'
+        f'  isMuted = !isMuted;'
+        f'  const b = document.getElementById("sf_btn_mute");'
+        f'  if(b) {{'
+        f'    b.style.background = isMuted ? "#DC2626" : "#334155";'
+        f'    b.innerText = isMuted ? "🔇" : "🎙️";'
+        f'  }}'
+        f'}};'
+        f'function toggleSimSpeaker() {{'
+        f'  isSpeaker = !isSpeaker;'
+        f'  const b = document.getElementById("sf_btn_speaker");'
+        f'  if(b) {{'
+        f'    b.style.background = isSpeaker ? "#334155" : "#1E293B";'
+        f'  }}'
+        f'}};'
+        f'startSimulatedCall();'
+        f'document.addEventListener("click", function() {{ if(callActive && callSecs <= 3) startSimulatedCall(); }}, {{once: true}});'
+        f'</script>'
+        f'</div>'
+    )
+
 

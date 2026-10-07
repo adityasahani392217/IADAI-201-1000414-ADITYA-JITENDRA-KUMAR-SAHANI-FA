@@ -54,7 +54,9 @@ from ui.components import (
     render_section_title,
     render_security_context_guard,
     render_sos_countdown_html,
+    render_simulated_calling_screen_html,
     render_sparkline_svg,
+
     render_speed_dial_list_html
 )
 from ui.styles import CLASS_GLYPHS, CLASS_HEX_COLORS, PALETTES
@@ -561,6 +563,16 @@ def render_live_monitor_page(
                 with alarm_slot:
                     components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
                     components.html(render_sos_countdown_html(15, 2.0), height=140)
+                    components.html(
+                        render_simulated_calling_screen_html(
+                            patient_name=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
+                            incident_id=evt.get('incident_id', 'FALL-TEST'),
+                            room_name="Active Room 01",
+                            is_active=True
+                        ),
+                        height=490
+                    )
+
 
                 st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
 
@@ -1563,12 +1575,35 @@ def render_emergency_sos_page(
 
         components.html(render_sos_countdown_html(15, sim_sec), height=140)
 
+        st.write("")
+        st.markdown("##### 📱 Simulated 911 Emergency Calling Screen (Recorded Voice Demo)")
+        st.caption("Audition the full emergency dispatch call workflow with realistic operator dialogue and interactive calling controls.")
+
+        sim_call_col1, sim_call_col2 = st.columns([1, 1])
+        with sim_call_col1:
+            if st.button("📞 Launch Simulated 911 Call", key="btn_launch_sim_call", use_container_width=True):
+                st.session_state["show_sim_calling_screen"] = True
+        with sim_call_col2:
+            if st.button("✕ Close Call Screen", key="btn_close_sim_call", use_container_width=True):
+                st.session_state["show_sim_calling_screen"] = False
+
+        if st.session_state.get("show_sim_calling_screen", True):
+            components.html(
+                render_simulated_calling_screen_html(
+                    patient_name=st.session_state.get("active_user", {}).get("name", "Senior Resident A"),
+                    incident_id="FALL-911-SIM",
+                    room_name="Active Room 01",
+                    is_active=True
+                ),
+                height=490
+            )
 
         st.markdown("##### Caregiver &amp; Medical Speed-Dial Directory", unsafe_allow_html=True)
         st.html(render_speed_dial_list_html())
 
         st.write("")
         if st.button("⚡ Simulate Automated SOS Emergency Dispatch", use_container_width=True):
+            st.session_state["show_sim_calling_screen"] = True
             dispatch_res = alert_mgr.trigger_fall_alert(
                 confidence=0.968,
                 metrics={"torso_angle_deg": 82.4, "aspect_ratio": 0.44},
@@ -1577,6 +1612,7 @@ def render_emergency_sos_page(
             )
             st.success(f"Emergency dispatch logged! Incident ID: {dispatch_res['incident_id']} &bull; Notified: {', '.join(dispatch_res['contacts_notified'])}")
             st.rerun()
+
 
     with col_right:
         st.markdown(

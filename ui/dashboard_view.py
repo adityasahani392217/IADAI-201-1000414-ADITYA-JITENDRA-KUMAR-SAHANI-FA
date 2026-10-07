@@ -707,8 +707,9 @@ def render_live_monitor_page(
                     unsafe_allow_html=True
                 )
 
-            # Sleep 0.65s to yield thread to OS and prevent Streamlit Cloud CPU throttling
-            time.sleep(0.65)
+            # Sleep 0.08s (12.5 Hz refresh) for snappy zero-latency telemetry updates
+            time.sleep(0.08)
+
 
         alarm_slot.empty()
 

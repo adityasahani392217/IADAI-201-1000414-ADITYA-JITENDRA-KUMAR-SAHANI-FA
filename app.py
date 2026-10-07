@@ -50,11 +50,12 @@ def initialize_session_defaults() -> None:
     defaults = {
         "nav_page": "Overview",
         "setting_fall_thr": 0.60,
-        "setting_need": 4,
-        "setting_alpha": 0.35,
-        "setting_stride": 2,
-        "setting_imgsz": 320,
+        "setting_need": 2,
+        "setting_alpha": 0.65,
+        "setting_stride": 1,
+        "setting_imgsz": 256,
         "setting_desk_mode": False,
+
         "setting_max_frames": 900,
         "setting_alarm_enabled": True,
         "setting_alarm_volume": 0.8,

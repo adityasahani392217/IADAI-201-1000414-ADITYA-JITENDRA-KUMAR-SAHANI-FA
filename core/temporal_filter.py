@@ -129,11 +129,12 @@ class TemporalDecisionFilter:
     def update(
         self,
         raw_probabilities: np.ndarray,
-        smoothing_alpha: float = 0.35,
+        smoothing_alpha: float = 0.65,
         fall_threshold: float = 0.60,
-        confirmations_needed: int = 4,
-        release_frames: int = 12
+        confirmations_needed: int = 2,
+        release_frames: int = 6
     ) -> Tuple[str, float, np.ndarray]:
+
         """
         Ingest current frame predictions, apply EMA smoothing, update hysteresis,
         and return (filtered_label, filtered_confidence, smoothed_distribution).

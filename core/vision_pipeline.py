@@ -170,13 +170,23 @@ class SafeFallPipelineCoordinator:
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.yolo_device = 0 if torch.cuda.is_available() else "cpu"
         self.inference_lock = threading.Lock()
         if self.device.type == "cpu":
-            torch.set_num_threads(2)
+            num_cores = os.cpu_count() or 4
+            torch.set_num_threads(min(4, max(2, num_cores // 2)))
 
         self.pose_model_path = self._locate_pose_model()
         self.pose_detector = YOLO(self.pose_model_path)
+        # Warmup YOLO to eliminate first-frame compilation latency
+        try:
+            dummy = np.zeros((192, 192, 3), dtype=np.uint8)
+            with torch.inference_mode():
+                self.pose_detector.predict(dummy, verbose=False, imgsz=192, device=self.yolo_device, classes=[0], max_det=1)
+        except Exception:
+            pass
         self.neural_model, self.is_trained_4class, self.engine_status = self._init_neural_classifier()
+
 
     def _locate_pose_model(self) -> str:
         """Locate YOLOv8 pose weights in models/ or project root."""
@@ -222,7 +232,7 @@ class SafeFallPipelineCoordinator:
         self,
         frame_bgr: np.ndarray,
         tracker: SubjectVisualTracker,
-        img_size: int = 320
+        img_size: int = 256
     ) -> Optional[Dict[str, Any]]:
         """Run YOLOv8 pose detector with inference_mode and class filtering for maximum FPS."""
         with self.inference_lock, torch.inference_mode():
@@ -230,12 +240,13 @@ class SafeFallPipelineCoordinator:
                 frame_bgr,
                 verbose=False,
                 conf=0.15,
-                imgsz=min(int(img_size), 320),
+                imgsz=min(int(img_size), 256),
                 device=self.yolo_device,
                 classes=[0],
                 max_det=2
             )[0]
         return tracker.update(yolo_results, frame_bgr.shape)
+
 
     def infer_neural_probabilities(self, sequence_batch: np.ndarray) -> np.ndarray:
         """Inference (N, 30, 51) sequence tensor -> (N, 4) probability array."""
@@ -490,15 +501,16 @@ class LiveStreamWorker(VideoProcessorBase):
         self.outputs_dir = outputs_dir
         self.config = {
             "fall_thr": 0.60,
-            "need": 4,
-            "alpha": 0.35,
-            "stride": 2,
+            "need": 2,
+            "alpha": 0.65,
+            "stride": 1,
             "enhance": False,
             "gamma": 1.6,
-            "imgsz": 320,
+            "imgsz": 256,
             "desk_mode": True,
             "force_legacy": False
         }
+
         self.tracker = SubjectVisualTracker()
         self.kinematics = KinematicPostureEngine()
         self.decision_filter = TemporalDecisionFilter()
@@ -688,17 +700,23 @@ class LiveStreamWorker(VideoProcessorBase):
                 self.consecutive_misses = 0
                 self.last_subject = subject
 
+                kin_probs = self.kinematics.register_frame(
+                    curr_time,
+                    subject["keypoints"],
+                    subject["confidences"],
+                    subject["bbox"]
+                )
+
                 if use_ai:
                     if self._push_features(subject["features"], curr_time) and len(self.feature_buffer) == SEQUENCE_LENGTH:
                         batch = np.asarray(self.feature_buffer, dtype=np.float32)[None]
-                        frame_probabilities = self.coordinator.infer_neural_probabilities(batch)[0]
+                        ai_probs = self.coordinator.infer_neural_probabilities(batch)[0]
+                        frame_probabilities = (0.60 * ai_probs) + (0.40 * (kin_probs if kin_probs is not None else ai_probs))
+                    else:
+                        frame_probabilities = kin_probs
                 else:
-                    frame_probabilities = self.kinematics.register_frame(
-                        curr_time,
-                        subject["keypoints"],
-                        subject["confidences"],
-                        subject["bbox"]
-                    )
+                    frame_probabilities = kin_probs
+
 
                 if frame_probabilities is not None:
                     label, conf, smoothed = self.decision_filter.update(

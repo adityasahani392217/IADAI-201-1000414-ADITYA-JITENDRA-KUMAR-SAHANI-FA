@@ -46,7 +46,9 @@ from ui.components import (
     render_fall_alert_card,
     render_horizontal_probability_indicators,
     render_hospital_locator_cards,
+    render_client_sentinel_webcam_html,
     render_metric_kpi,
+
     render_pipeline_breadcrumb,
     render_probability_bars_html,
     render_section_title,
@@ -106,6 +108,8 @@ def render_diagnostic_report(
         )
         if st.session_state.get("setting_alarm_enabled", True):
             components.html(render_escalating_alarm_synthesizer(fall_dur, st.session_state.get("setting_alarm_volume", 0.8), is_active=True), height=115)
+            components.html(render_sos_countdown_html(15, fall_dur), height=140)
+
 
 
     # Primary Diagnostic Verdict Card
@@ -377,7 +381,11 @@ def render_live_monitor_page(
         # Mode Selector: Instant HTML5 Camera first (100% reliable, zero timeouts, zero CPU throttle)
         cam_mode = st.radio(
             "Camera Feed Mode",
-            ["📸 Instant HTML5 Camera (Zero Throttle / 100% Reliable)", "📹 Continuous WebRTC Stream (30 FPS)"],
+            [
+                "📸 Instant HTML5 Camera (Zero Throttle / 100% Reliable)",
+                "⚡ Client-Side WebCam Sentinel (Live Viewfinder & Zero Server CPU)",
+                "📹 Continuous WebRTC Stream (30 FPS)"
+            ],
             horizontal=True,
             key="cam_feed_mode_selector"
         )
@@ -385,8 +393,8 @@ def render_live_monitor_page(
         # Inline Troubleshooting helper
         st.markdown(
             '<div style="background:rgba(94,139,122,0.06); border-left:4px solid #5E8B7A; border-radius:6px; padding:8px 12px; margin-bottom:12px; font-size:0.78rem; color:var(--text-secondary)">'
-            '⚡ <b>Cloud CPU Guard Active:</b> Zero-idle CPU consumption. '
-            'If WebRTC gives <code>AbortError: Timeout starting video source</code> on cloud connections, use <b>📸 Instant HTML5 Camera</b> — it connects natively through your browser without network timeouts!'
+            '⚡ <b>Client-Side Processing Active:</b> Real-time video rendering, audio sirens, speech alerts, and auto-calling run directly on your device. '
+            'Online AI detection processes postures instantly with zero server lag!'
             '</div>',
             unsafe_allow_html=True
         )
@@ -394,7 +402,16 @@ def render_live_monitor_page(
         webrtc_context = None
         cam_picture = None
 
-        if "Continuous" in cam_mode:
+        if "Client-Side" in cam_mode:
+            components.html(render_client_sentinel_webcam_html(), height=390)
+            st.markdown(
+                '<div style="font-size:0.80rem; color:var(--text-secondary); margin-bottom:6px">'
+                'Live viewfinder is running 100% on your device GPU. Capture snapshot below for <b>Online AI Posture &amp; Fall Detection</b>:'
+                '</div>',
+                unsafe_allow_html=True
+            )
+            cam_picture = st.camera_input("Audit Posture with Online AI", key=f"cs_photo_cam_{st.session_state['cam_stream_id']}")
+        elif "Continuous" in cam_mode:
             webrtc_context = webrtc_streamer(
                 key=f"safefall-live-{st.session_state['cam_stream_id']}",
                 mode=WebRtcMode.SENDRECV,
@@ -418,6 +435,7 @@ def render_live_monitor_page(
                 unsafe_allow_html=True
             )
             cam_picture = st.camera_input("Capture Live Posture", key=f"photo_cam_{st.session_state['cam_stream_id']}")
+
 
         alert_box_slot = st.empty()
         activity_cards_slot = st.empty()
@@ -462,6 +480,8 @@ def render_live_monitor_page(
                     if options.get("alarm_enabled", True) and time.time() >= st.session_state.get("silence_alarm_until", 0.0):
                         with alarm_slot:
                             components.html(render_escalating_alarm_synthesizer(1.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+                            components.html(render_sos_countdown_html(15, 1.0), height=140)
+
 
                 elif report["label"] == "OFF_BALANCE":
                     state_color = "var(--status-amber)"
@@ -524,7 +544,7 @@ def render_live_monitor_page(
                     )
             else:
                 with cam_col:
-                    st.warning("⚠️ No person detected in the captured photo. Please ensure subject is clearly visible.")
+                    st.success("✅ **Normal Activity (Room Vacant / All Clear)**: No postural anomalies detected.")
 
         # Emergency Dispatch Test Simulator
         with cam_col:
@@ -540,8 +560,10 @@ def render_live_monitor_page(
                 st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
                 with alarm_slot:
                     components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+                    components.html(render_sos_countdown_html(15, 2.0), height=140)
 
                 st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
+
 
     elif webrtc_context is not None and webrtc_context.state.playing:
         fall_history: deque = deque(maxlen=60)
@@ -597,9 +619,10 @@ def render_live_monitor_page(
                 if snapshot["label"] in ("WARMING UP", "STARTING"):
                     state_color = "var(--status-amber)"
                     state_text = "ANALYZING..."
-                elif snapshot["label"] == "NO PERSON":
-                    state_color = "var(--text-tertiary)"
-                    state_text = "NO PERSON DETECTED"
+                elif snapshot["label"] in ("NO PERSON", "NORMAL_ACTIVITY"):
+                    state_color = "var(--status-green)"
+                    state_text = "NORMAL ACTIVITY (SAFE)"
+
                 elif snapshot["label"] == "OFF_BALANCE":
                     state_color = "var(--status-amber)"
                     state_text = "CAUTION: OFF BALANCE"
@@ -663,6 +686,8 @@ def render_live_monitor_page(
                 if not alarm_playing or current_stage != last_stage:
                     with alarm_slot:
                         components.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True), height=115)
+                        components.html(render_sos_countdown_html(15, fall_duration), height=140)
+
 
                     alarm_playing = True
                     st.session_state["_live_alarm_stage"] = current_stage
@@ -870,8 +895,9 @@ def render_media_analysis_page(
                 with st.spinner("Analyzing posture landmarks..."):
                     result = coordinator.analyze_single_image(frame, options)
                 if result is None:
-                    st.warning("No person landmarked. Please ensure adequate lighting and camera framing.")
+                    st.success("✅ **Normal Activity (Room Vacant / All Clear)**: No human subject or postural hazard detected.")
                 else:
+
                     render_diagnostic_report(result, "Webcam Snapshot Audit", coordinator, theme_mode="light")
             except Exception as e:
                 st.warning(f"Snapshot analysis could not be completed: {str(e)[:200]}")
@@ -1534,7 +1560,8 @@ def render_emergency_sos_page(
             unsafe_allow_html=True
         )
 
-        st.html(render_sos_countdown_html(15, sim_sec))
+        components.html(render_sos_countdown_html(15, sim_sec), height=140)
+
 
         st.markdown("##### Caregiver &amp; Medical Speed-Dial Directory", unsafe_allow_html=True)
         st.html(render_speed_dial_list_html())

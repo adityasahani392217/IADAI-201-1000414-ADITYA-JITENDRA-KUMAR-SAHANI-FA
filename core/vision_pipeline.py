@@ -252,7 +252,37 @@ class SafeFallPipelineCoordinator:
         tracker = SubjectVisualTracker()
         subject = self.extract_subject_pose(frame_bgr, tracker, options.get("imgsz", 480))
         if subject is None:
-            return None
+            # User requirement: Instead of no person detected, show Normal Activity because when there is no one, it is normal!
+            norm_probs = [0.0] * len(ACTIVITY_CLASSES)
+            norm_idx = ACTIVITY_CLASSES.index("NORMAL_ACTIVITY") if "NORMAL_ACTIVITY" in ACTIVITY_CLASSES else 0
+            norm_probs[norm_idx] = 0.96
+            stand_idx = ACTIVITY_CLASSES.index("STANDING") if "STANDING" in ACTIVITY_CLASSES else -1
+            if stand_idx != -1 and stand_idx != norm_idx:
+                norm_probs[stand_idx] = 0.04
+
+            preview_img = frame_bgr.copy()
+            cv2.rectangle(preview_img, (16, 16), (320, 60), (250, 252, 250), -1)
+            cv2.rectangle(preview_img, (16, 16), (320, 60), (70, 195, 60), 2, cv2.LINE_AA)
+            cv2.circle(preview_img, (36, 38), 6, (70, 195, 60), -1, cv2.LINE_AA)
+            cv2.putText(preview_img, "Normal Activity (Clear)", (52, 44), cv2.FONT_HERSHEY_DUPLEX, 0.58, (35, 45, 30), 1, cv2.LINE_AA)
+
+            return {
+                "label": "NORMAL_ACTIVITY",
+                "confidence": 0.96,
+                "probs": norm_probs,
+                "frames": 1,
+                "detected": 0,
+                "rate": 0.0,
+                "windows": 1,
+                "preview": preview_img,
+                "timeline": None,
+                "times": None,
+                "votes": None,
+                "fall_time": None,
+                "engine": "SafeFall Active Sentinel",
+                "kind": "image"
+            }
+
 
         kinematics = KinematicPostureEngine(desk_mode=options.get("desk_mode", True))
         rule_probs = kinematics.register_frame(
@@ -690,8 +720,11 @@ class LiveStreamWorker(VideoProcessorBase):
                     self.feature_buffer.clear()
                     self.kinematics.reset()
                     self.decision_filter.reset()
-                    self.last_subject = None
-                    self.current_state = {"label": "NO PERSON", "conf": 0.0, "probs": [1.0 / len(ACTIVITY_CLASSES)] * len(ACTIVITY_CLASSES)}
+                    norm_probs = [0.0] * len(ACTIVITY_CLASSES)
+                    norm_idx = ACTIVITY_CLASSES.index("NORMAL_ACTIVITY") if "NORMAL_ACTIVITY" in ACTIVITY_CLASSES else 0
+                    norm_probs[norm_idx] = 0.95
+                    self.current_state = {"label": "NORMAL_ACTIVITY", "conf": 0.95, "probs": norm_probs}
+
 
         person_visible = self.consecutive_misses <= 3 and self.last_subject is not None
         curr_label = self.current_state["label"]

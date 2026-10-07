@@ -44,8 +44,9 @@ def draw_hud(frame: np.ndarray,
                 cv2.FONT_HERSHEY_DUPLEX, 0.58, (220, 220, 220), 1, cv2.LINE_AA)
     
     if is_none:
-        status_color = (200, 215, 225)
-        status_text = "Status: NO PERSON DETECTED"
+        status_color = (60, 255, 130)
+        status_text = "Status: NORMAL ACTIVITY (CLEAR)"
+
     elif is_fall:
         status_color = (60, 60, 255)
         status_text = f"Status: {activity.upper()}"

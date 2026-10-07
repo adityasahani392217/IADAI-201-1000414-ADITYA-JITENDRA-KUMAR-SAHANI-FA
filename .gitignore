@@ -1,0 +1,46 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Tunnel and temporary binaries
+cloudflared.exe
+*.exe
+
+# Kaggle Large Video & Image Datasets (Do not upload to Git)
+data/le2i_dataset/
+data/internet_images/
+data/train_dataset.csv
+data/test_dataset.csv
+data/val_dataset.csv
+data/internet_features.csv
+*.avi
+*.mp4
+!data/sample_media/demo_fall_sequence.mp4
+
+# Incident snapshots and temp media
+outputs/falls/*.jpg
+outputs/falls/*.png
+!outputs/falls/.gitkeep
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

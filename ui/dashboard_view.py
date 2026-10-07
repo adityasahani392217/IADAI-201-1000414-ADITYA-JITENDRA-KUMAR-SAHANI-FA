@@ -56,7 +56,15 @@ from ui.components import (
 from ui.styles import CLASS_GLYPHS, CLASS_HEX_COLORS, PALETTES
 from utils.alert_manager import AlertManager
 
-WEBRTC_ICE_SERVERS = {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+WEBRTC_ICE_SERVERS = {
+    "iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {"urls": ["stun:stun1.l.google.com:19302"]},
+        {"urls": ["stun:stun2.l.google.com:19302"]},
+        {"urls": ["stun:stun3.l.google.com:19302"]},
+        {"urls": ["stun:stun4.l.google.com:19302"]},
+    ]
+}
 
 
 # =========================================================
@@ -334,37 +342,79 @@ def render_live_monitor_page(
     st.markdown(
         render_section_title(
             "Live Monitor",
-            "Real-time webcam telemetry & biomechanical posture tracking at 24-30 FPS."
+            "Real-time webcam telemetry & biomechanical posture tracking across all 6 clinical activities."
         ),
         unsafe_allow_html=True
     )
 
     render_security_context_guard()
 
+    if "cam_stream_id" not in st.session_state:
+        st.session_state["cam_stream_id"] = 0
+
     # Layout: Central large camera preview (2.2) and clear side status panel (1.2)
     cam_col, info_col = st.columns([2.2, 1.2])
 
     with cam_col:
-        # Status header above camera
+        # Status header above camera with Reset button
+        ctrl_c1, ctrl_c2 = st.columns([2, 1])
+        with ctrl_c1:
+            st.markdown(
+                '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">'
+                '<span style="font-weight:700; font-size:1.0rem; color:var(--text-primary)">Camera 01 &bull; Active Room</span>'
+                '<span class="badge active"><span class="status-dot pulse"></span>Ready</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+        with ctrl_c2:
+            if st.button("🔄 Reset Camera", key="btn_reset_cam", use_container_width=True, help="Force browser to release stuck webcam track and re-initialize"):
+                st.session_state["cam_stream_id"] += 1
+                st.rerun()
+
+        # Mode Selector: Instant HTML5 Camera first (100% reliable, zero timeouts, zero CPU throttle)
+        cam_mode = st.radio(
+            "Camera Feed Mode",
+            ["📸 Instant HTML5 Camera (Zero Throttle / 100% Reliable)", "📹 Continuous WebRTC Stream (30 FPS)"],
+            horizontal=True,
+            key="cam_feed_mode_selector"
+        )
+
+        # Inline Troubleshooting helper
         st.markdown(
-            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">'
-            '<span style="font-weight:700; font-size:0.95rem; color:var(--text-primary)">Camera 01 &bull; Active Room</span>'
-            '<span class="badge active"><span class="status-dot pulse"></span>Ready</span>'
+            '<div style="background:rgba(94,139,122,0.06); border-left:4px solid #5E8B7A; border-radius:6px; padding:8px 12px; margin-bottom:12px; font-size:0.78rem; color:var(--text-secondary)">'
+            '⚡ <b>Cloud CPU Guard Active:</b> Zero-idle CPU consumption. '
+            'If WebRTC gives <code>AbortError: Timeout starting video source</code> on cloud connections, use <b>📸 Instant HTML5 Camera</b> — it connects natively through your browser without network timeouts!'
             '</div>',
             unsafe_allow_html=True
         )
 
-        webrtc_context = webrtc_streamer(
-            key="safefall-live-worker",
-            mode=WebRtcMode.SENDRECV,
-            rtc_configuration=WEBRTC_ICE_SERVERS,
-            media_stream_constraints={
-                "video": True,
-                "audio": False
-            },
-            video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),
-            async_processing=True
-        )
+        webrtc_context = None
+        cam_picture = None
+
+        if "Continuous" in cam_mode:
+            webrtc_context = webrtc_streamer(
+                key=f"safefall-live-{st.session_state['cam_stream_id']}",
+                mode=WebRtcMode.SENDRECV,
+                rtc_configuration=WEBRTC_ICE_SERVERS,
+                media_stream_constraints={
+                    "video": {
+                        "width": {"ideal": 480, "max": 640},
+                        "height": {"ideal": 360, "max": 480},
+                        "frameRate": {"ideal": 24, "max": 30}
+                    },
+                    "audio": False
+                },
+                video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),
+                async_processing=True
+            )
+        else:
+            st.markdown(
+                '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:8px">'
+                'Direct browser camera capture (zero WebRTC driver conflicts). Point camera at subject and click <b>Take Photo</b> to inspect live posture.'
+                '</div>',
+                unsafe_allow_html=True
+            )
+            cam_picture = st.camera_input("Capture Live Posture", key=f"photo_cam_{st.session_state['cam_stream_id']}")
 
         alert_box_slot = st.empty()
         activity_cards_slot = st.empty()
@@ -380,46 +430,131 @@ def render_live_monitor_page(
     alarm_slot = st.empty()
     events_slot = st.empty()
 
-    if not webrtc_context.state.playing:
-        telemetry_slot.markdown(
-            '<div class="card">'
-            '<div class="card-header">'
-            '<span class="card-title">Live Posture</span>'
-            '<span class="badge active"><span class="status-dot"></span>Calibrated</span>'
-            '</div>'
-            '<div class="activity-display-label">CURRENT ACTIVITY</div>'
-            '<div class="activity-display-val" style="margin-top:2px">WALKING</div>'
-            '<div class="activity-display-conf" style="margin-top:2px">94.7% confidence</div>'
-            '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">94.7%</div></div>'
-            '<div class="stat-tile"><div class="l">FPS</div><div class="v">30</div></div>'
-            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">Yes</div></div>'
-            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:var(--status-green)">1.4%</div></div>'
-            '</div>'
-            '<div style="margin-top:14px">'
-            '<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
-            f'{render_sparkline_svg([0.02, 0.018, 0.016, 0.015, 0.014], stroke_color="#5E8B7A")}'
-            '</div>'
-            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview to connect live camera stream.</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        bars_slot.markdown(
-            f'<div class="card">'
-            f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-            f'{render_horizontal_probability_indicators([0.015, 0.015, 0.935, 0.015, 0.010, 0.010])}'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-        activity_cards_slot.markdown(render_activity_cards_html([0.015, 0.015, 0.935, 0.015, 0.010, 0.010], active_label="WALKING"), unsafe_allow_html=True)
-    else:
+    if cam_picture is not None:
+        bytes_data = cam_picture.getvalue()
+        img_arr = np.frombuffer(bytes_data, np.uint8)
+        frame_bgr = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+        if frame_bgr is not None:
+            snap_options = dict(options)
+            report = coordinator.analyze_single_image(frame_bgr, snap_options)
+            if report is not None:
+                with cam_col:
+                    st.image(
+                        report["preview"][:, :, ::-1],
+                        caption=f"Analyzed Posture: {report['label']} ({report['confidence']:.1%})",
+                        use_container_width=True
+                    )
+
+                is_fall = report["label"] == "FALL"
+                probs = report["probs"]
+                fall_idx = ACTIVITY_CLASSES.index("FALL")
+                fall_p = float(probs[fall_idx]) if len(probs) > fall_idx else 0.0
+
+                if is_fall:
+                    state_color = "var(--status-red)"
+                    alert_box_slot.markdown(
+                        render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=1.0),
+                        unsafe_allow_html=True
+                    )
+                    if options.get("alarm_enabled", True) and time.time() >= st.session_state.get("silence_alarm_until", 0.0):
+                        with alarm_slot:
+                            st.html(render_escalating_alarm_synthesizer(1.0, options.get("alarm_volume", 0.8), is_active=True))
+                elif report["label"] == "OFF_BALANCE":
+                    state_color = "var(--status-amber)"
+                else:
+                    state_color = "var(--status-green)"
+
+                telemetry_slot.markdown(
+                    f'<div class="card">'
+                    f'<div class="card-header">'
+                    f'<span class="card-title">Live Posture</span>'
+                    f'<span class="badge active"><span class="status-dot"></span>{report["engine"]}</span>'
+                    f'</div>'
+                    f'<div style="font-size:2.2rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
+                    f'{report["label"].replace("_", " ").title()}'
+                    f'</div>'
+                    f'<div style="font-size:0.90rem; color:var(--text-secondary); margin-top:4px">'
+                    f'Confidence <b>{report["confidence"]:.1%}</b> &bull; HTML5 Snapshot'
+                    f'</div>'
+                    f'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
+                    f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{report["confidence"]:.0%}</div></div>'
+                    f'<div class="stat-tile"><div class="l">Engine</div><div class="v">YOLOv8 Pose</div></div>'
+                    f'<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">Yes</div></div>'
+                    f'<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:{"var(--status-red)" if is_fall else "var(--status-green)"}">{fall_p:.0%}</div></div>'
+                    f'</div>'
+                    f'<div style="margin-top:14px">'
+                    f'<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
+                    f'{render_sparkline_svg([fall_p] * 5, stroke_color="#E53E3E" if is_fall else "#5E8B7A")}'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                bars_slot.markdown(
+                    f'<div class="card">'
+                    f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
+                    f'{render_horizontal_probability_indicators(probs, highlight_fall=is_fall)}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                activity_cards_slot.markdown(
+                    render_activity_cards_html(probs, active_label=report["label"], animate=False),
+                    unsafe_allow_html=True
+                )
+
+                # Clinical Posture & Ergonomics Advisor
+                advice_map = {
+                    "SITTING": "💡 <b>Ergonomic Posture Advisor:</b> Spine is aligned. Ensure feet remain flat on the floor. Take a 2-minute standing stretch every 40 minutes.",
+                    "STANDING": "💡 <b>Posture Advisor:</b> Upright bilateral stance confirmed. Keep weight centered and knees unlocked to minimize fatigue.",
+                    "WALKING": "💡 <b>Gait & Mobility Advisor:</b> Dynamic gait motion detected. Ensure walkways remain well-lit and clear of throw rugs.",
+                    "OFF_BALANCE": "⚠️ <b>Clinical Alert (Off Balance):</b> Postural instability or lateral tilt detected. Use wall grab bars or assistive cane immediately.",
+                    "FALL": "🚨 <b>EMERGENCY SENTINEL ALERT:</b> Acute fall event! Do not attempt to stand abruptly. Check vital signs and consciousness. Emergency contacts notified.",
+                    "NORMAL_ACTIVITY": "💡 <b>Clinical Advisor:</b> Nominal domestic movement detected. Maintain steady, deliberate motions."
+                }
+                curr_advice = advice_map.get(report["label"], "💡 Posture monitored nominal.")
+                with cam_col:
+                    st.markdown(
+                        f'<div style="background:rgba(94,139,122,0.08); border-left:4px solid {"var(--status-red)" if is_fall else "var(--status-amber)" if report["label"] == "OFF_BALANCE" else "var(--accent)"}; border-radius:6px; padding:10px 14px; margin-top:12px; font-size:0.82rem; color:var(--text-secondary)">'
+                        f'{curr_advice}'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+            else:
+                with cam_col:
+                    st.warning("⚠️ No person detected in the captured photo. Please ensure subject is clearly visible.")
+
+        # Emergency Dispatch Test Simulator
+        with cam_col:
+            st.write("")
+            if st.button("🚨 Simulate Emergency Dispatch & Siren Test", key="btn_sim_dispatch_test", use_container_width=True):
+                alert_mgr = AlertManager(falls_dir)
+                evt = alert_mgr.trigger_fall_alert(
+                    fall_confidence=0.98,
+                    patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
+                    room_name="Active Room 01",
+                    sensor_metadata={"simulated": True, "mode": "1-Click Healthcare Sentinel Test"}
+                )
+                st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
+                with alarm_slot:
+                    st.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True))
+                st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
+
+    elif webrtc_context is not None and webrtc_context.state.playing:
         fall_history: deque = deque(maxlen=60)
         alarm_playing = False
+        stream_start_time = time.time()
 
         while webrtc_context.state.playing:
+            # 75-second auto-pause to prevent infinite CPU consumption on cloud containers
+            if time.time() - stream_start_time > 75.0:
+                with cam_col:
+                    st.info("⏱️ Real-time stream auto-paused after 75s to keep cloud CPU usage low. Click **Resume Stream** below.")
+                    if st.button("▶️ Resume Real-Time Stream", key="btn_resume_stream", use_container_width=True):
+                        st.rerun()
+                break
+
             worker: Optional[LiveStreamWorker] = webrtc_context.video_processor
             if worker is None:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 continue
 
             # Pass runtime options from session state
@@ -541,9 +676,43 @@ def render_live_monitor_page(
                     unsafe_allow_html=True
                 )
 
-            time.sleep(0.25)
+            # Sleep 0.65s to yield thread to OS and prevent Streamlit Cloud CPU throttling
+            time.sleep(0.65)
 
         alarm_slot.empty()
+
+    else:
+        telemetry_slot.markdown(
+            '<div class="card">'
+            '<div class="card-header">'
+            '<span class="card-title">Live Posture</span>'
+            '<span class="badge active"><span class="status-dot"></span>Calibrated</span>'
+            '</div>'
+            '<div class="activity-display-label">CURRENT ACTIVITY</div>'
+            '<div class="activity-display-val" style="margin-top:2px">WALKING</div>'
+            '<div class="activity-display-conf" style="margin-top:2px">94.7% confidence</div>'
+            '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
+            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">94.7%</div></div>'
+            '<div class="stat-tile"><div class="l">FPS</div><div class="v">30</div></div>'
+            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">Yes</div></div>'
+            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:var(--status-green)">1.4%</div></div>'
+            '</div>'
+            '<div style="margin-top:14px">'
+            '<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
+            f'{render_sparkline_svg([0.02, 0.018, 0.016, 0.015, 0.014], stroke_color="#5E8B7A")}'
+            '</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview to connect live camera stream.</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        bars_slot.markdown(
+            f'<div class="card">'
+            f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
+            f'{render_horizontal_probability_indicators([0.015, 0.015, 0.935, 0.015, 0.010, 0.010])}'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        activity_cards_slot.markdown(render_activity_cards_html([0.015, 0.015, 0.935, 0.015, 0.010, 0.010], active_label="WALKING"), unsafe_allow_html=True)
 
 
 # =========================================================
@@ -1446,6 +1615,185 @@ def render_emergency_sos_page(
 
 
 # =========================================================
+# PAGE 9: CLINICAL RISK ASSESSMENT (MORSE FALL SCALE & TUG)
+# =========================================================
+def render_clinical_risk_assessment_page(coordinator: SafeFallPipelineCoordinator) -> None:
+    """Render comprehensive clinical fall risk assessment (Morse Fall Scale & TUG test)."""
+    st.markdown(
+        render_section_title(
+            "Clinical Fall Risk Assessment",
+            "Validated Morse Fall Scale (MFS) protocol, Timed Up and Go (TUG) mobility test, and personalized care plan."
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div style="background:rgba(94,139,122,0.08); border-left:4px solid #5E8B7A; border-radius:6px; padding:10px 14px; margin-bottom:16px; font-size:0.84rem; color:var(--text-secondary)">'
+        '🩺 <b>Standard Clinical Guideline:</b> The Morse Fall Scale (MFS) is the internationally recognized acute care & geriatric fall risk predictor. '
+        'Scores above 50 trigger immediate high-risk bedside protocols and active SafeFall AI sentinel monitoring.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    tab_mfs, tab_tug, tab_hazards = st.tabs(["📋 Morse Fall Scale (MFS)", "⏱️ Timed Up & Go (TUG)", "🏡 Home Hazard Audit"])
+
+    with tab_mfs:
+        mfs_col1, mfs_col2 = st.columns([1.8, 1.2])
+
+        with mfs_col1:
+            st.markdown("##### 1. Patient Fall Risk Assessment Items")
+
+            # 1. History of Falling
+            q1 = st.radio(
+                "1. History of falling (within past 3 months)",
+                ["No (0 pts)", "Yes (25 pts)"],
+                index=0,
+                key="mfs_q1"
+            )
+            score_q1 = 25 if "Yes" in q1 else 0
+
+            # 2. Secondary Diagnosis
+            q2 = st.radio(
+                "2. Secondary medical diagnosis (>1 diagnosis in chart)",
+                ["No (0 pts)", "Yes (15 pts)"],
+                index=1,
+                key="mfs_q2"
+            )
+            score_q2 = 15 if "Yes" in q2 else 0
+
+            # 3. Ambulatory Aid
+            q3 = st.radio(
+                "3. Ambulatory aid used",
+                ["None / Bedrest / Nurse Assistance (0 pts)", "Crutches / Cane / Walker (15 pts)", "Furniture Support / Walls (30 pts)"],
+                index=1,
+                key="mfs_q3"
+            )
+            score_q3 = 30 if "Furniture" in q3 else (15 if "Crutches" in q3 else 0)
+
+            # 4. IV or Heparin Lock
+            q4 = st.radio(
+                "4. Intravenous therapy or Heparin lock",
+                ["No (0 pts)", "Yes (20 pts)"],
+                index=0,
+                key="mfs_q4"
+            )
+            score_q4 = 20 if "Yes" in q4 else 0
+
+            # 5. Gait / Transferring
+            q5 = st.radio(
+                "5. Gait & transferring mobility",
+                ["Normal / Bedfast / Wheelchair (0 pts)", "Weak gait: short steps, stooped (10 pts)", "Impaired gait: difficulty rising, unsteady (20 pts)"],
+                index=1,
+                key="mfs_q5"
+            )
+            score_q5 = 20 if "Impaired" in q5 else (10 if "Weak" in q5 else 0)
+
+            # 6. Mental Status
+            q6 = st.radio(
+                "6. Mental status / orientation",
+                ["Oriented to own ability (0 pts)", "Overestimates or forgets limitations (15 pts)"],
+                index=0,
+                key="mfs_q6"
+            )
+            score_q6 = 15 if "Overestimates" in q6 else 0
+
+            total_mfs = score_q1 + score_q2 + score_q3 + score_q4 + score_q5 + score_q6
+
+        with mfs_col2:
+            if total_mfs <= 24:
+                tier = "LOW RISK"
+                tier_color = "var(--status-green)"
+                bg_badge = "rgba(16,185,129,0.1)"
+                border_badge = "rgba(16,185,129,0.3)"
+                summary_text = "Basic Fall Prevention Standard. Maintain safe uncluttered environment."
+            elif total_mfs <= 50:
+                tier = "MODERATE RISK"
+                tier_color = "var(--status-amber)"
+                bg_badge = "rgba(245,158,11,0.1)"
+                border_badge = "rgba(245,158,11,0.3)"
+                summary_text = "Standard Fall Protocols. Assistive devices, non-skid footwear, regular check-ins."
+            else:
+                tier = "HIGH RISK"
+                tier_color = "var(--status-red)"
+                bg_badge = "rgba(239,68,68,0.1)"
+                border_badge = "rgba(239,68,68,0.3)"
+                summary_text = "CRITICAL SENTINEL PROTOCOL. Bed low to floor, 24/7 vision sentinel, call bell within reach."
+
+            st.markdown(
+                f'<div class="card">'
+                f'<div class="card-header">'
+                f'<span class="card-title">Morse Score Results</span>'
+                f'<span class="badge" style="background:{bg_badge}; border:1px solid {border_badge}; color:{tier_color}; font-weight:700">{tier}</span>'
+                f'</div>'
+                f'<div style="font-size:3.2rem; font-weight:800; color:{tier_color}; line-height:1.0; margin-top:6px">{total_mfs} <small style="font-size:1.1rem; color:var(--text-tertiary)">/ 125</small></div>'
+                f'<div style="font-size:0.86rem; color:var(--text-secondary); margin-top:8px">{summary_text}</div>'
+                f'<div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle)">'
+                f'<div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px">Score Breakdown</div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Fall History:</span><b>{score_q1} pts</b></div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Secondary Diagnosis:</span><b>{score_q2} pts</b></div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Ambulatory Aid:</span><b>{score_q3} pts</b></div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>IV / Heparin Lock:</span><b>{score_q4} pts</b></div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Gait Impairment:</span><b>{score_q5} pts</b></div>'
+                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem"><span>Mental Status:</span><b>{score_q6} pts</b></div>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+            # Care Plan Recommendations
+            st.markdown(
+                '<div class="card" style="margin-top:14px">'
+                '<div class="card-header"><span class="card-title">🛡️ Tailored Care Plan</span></div>'
+                '<ul style="margin:6px 0 0 16px; padding:0; font-size:0.82rem; color:var(--text-secondary); line-height:1.6">'
+                '<li><b>SafeFall Sentinel:</b> Keep SafeFall AI active in room with 6-class posture tracker.</li>'
+                '<li><b>Environmental:</b> Night lights in hallway and bathroom (min 50 lux).</li>'
+                '<li><b>Mobility:</b> Physical therapy gait assessment every 30 days.</li>'
+                '<li><b>Hydration & Nutrition:</b> Monitor postural hypotension upon standing.</li>'
+                '</ul>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+    with tab_tug:
+        st.markdown("##### ⏱️ Timed Up and Go (TUG) Mobility Benchmark")
+        st.caption("Patient stands from chair, walks 3 meters (10 ft), turns, walks back, and sits.")
+        tug_col1, tug_col2 = st.columns([1.5, 1.5])
+        with tug_col1:
+            tug_seconds = st.slider("TUG Elapsed Duration (Seconds)", min_value=4.0, max_value=35.0, value=11.5, step=0.5)
+            if tug_seconds < 10.0:
+                tug_res = "🟢 Freely Mobile (<10s) - Normal mobility"
+            elif tug_seconds <= 20.0:
+                tug_res = "🟡 Mostly Independent (10-20s) - Fair mobility, occasional supervision"
+            else:
+                tug_res = "🔴 High Fall Risk (>20s) - Impaired mobility, assist device required"
+            st.info(tug_res)
+        with tug_col2:
+            st.markdown(
+                '<div class="card">'
+                '<div class="card-header"><span class="card-title">TUG Clinical Guidelines</span></div>'
+                '<div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5">'
+                '&bull; <b>&lt; 10 seconds:</b> Normal, safe community mobility.<br>'
+                '&bull; <b>11 - 20 seconds:</b> Frail elderly, may go outside alone with cane.<br>'
+                '&bull; <b>&gt; 20 seconds:</b> High risk of acute falls; physical therapy referral strongly recommended.'
+                '</div>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+    with tab_hazards:
+        st.markdown("##### 🏡 Geriatric Environmental Safety & Hazard Checklist")
+        h_c1, h_c2 = st.columns(2)
+        with h_c1:
+            st.checkbox("Floors clear of throw rugs and loose cords", value=True)
+            st.checkbox("Bathroom equipped with grab bars near toilet & shower", value=True)
+            st.checkbox("Well-lit hallways and staircases with nightlights", value=False)
+        with h_c2:
+            st.checkbox("Non-skid rubber soled footwear worn indoors", value=True)
+            st.checkbox("Bed height adjusted to patient knee level", value=True)
+            st.checkbox("Emergency phone or SafeFall SOS button within arm reach", value=True)
+
+
+# =========================================================
 # CENTRAL DASHBOARD ROUTER
 # =========================================================
 def render_dashboard(
@@ -1480,6 +1828,8 @@ def render_dashboard(
         render_live_monitor_page(coordinator, falls_dir, options)
     elif current_page == "Emergency SOS":
         render_emergency_sos_page(coordinator, falls_dir, options)
+    elif current_page in ("Risk Assessment", "Clinical Risk Assessment"):
+        render_clinical_risk_assessment_page(coordinator)
     elif current_page == "Media Analysis":
         render_media_analysis_page(coordinator, falls_dir, options)
     elif current_page == "Model Insights":

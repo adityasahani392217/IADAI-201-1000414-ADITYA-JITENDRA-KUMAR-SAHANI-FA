@@ -37,7 +37,7 @@ SEQUENCE_LENGTH = 30
 SEQUENCE_STRIDE = 5
 REFERENCE_FPS = 25.0
 FEATURE_DIMENSION = 51
-MIN_KEYPOINT_CONFIDENCE = 0.35
+MIN_KEYPOINT_CONFIDENCE = 0.18
 
 # COCO 17-keypoint skeleton connectivity graph
 COCO_TOPOLOGY = [
@@ -115,10 +115,15 @@ def compute_segment_midpoint(
     """Compute the 2D spatial centroid between two landmark indices if sufficiently visible."""
     valid_points = [
         keypoints[idx] for idx in indices
-        if confidences[idx] >= min_confidence
+        if confidences[idx] >= min_confidence and (keypoints[idx][0] > 0 or keypoints[idx][1] > 0)
     ]
     if not valid_points:
-        return None
+        valid_points = [
+            keypoints[idx] for idx in indices
+            if confidences[idx] >= 0.10 and (keypoints[idx][0] > 0 or keypoints[idx][1] > 0)
+        ]
+        if not valid_points:
+            return None
     return np.mean(valid_points, axis=0)
 
 
@@ -217,8 +222,24 @@ class KinematicPostureEngine:
         torso = current["torso_length"]
 
         if sh is None:
-            # Shoulders must be visible to reliably evaluate upper-body kinematics
-            return None
+            # Check if head / face keypoints (nose=0, eyes=1,2, ears=3,4) are visible:
+            head_mid = compute_segment_midpoint(kp, cf, (1, 2), min_confidence=0.10)
+            if head_mid is None and cf[0] >= 0.10:
+                head_mid = kp[0]
+            if head_mid is not None and (head_mid[0] > 0 or head_mid[1] > 0):
+                # Approximate shoulder location from head position
+                sh = np.array([head_mid[0], head_mid[1] + current["bh"] * 0.22], dtype=np.float32)
+                current["shoulder_mid"] = sh
+
+        if sh is None:
+            # Fallback to bounding box geometry (e.g. extreme closeup or occluded torso)
+            aspect_ratio = current["bw"] / max(current["bh"], 1.0)
+            if aspect_ratio >= 1.25:
+                return STATE_PRIORS["FALL_ACUTE"].copy()
+            elif aspect_ratio <= 0.82:
+                return STATE_PRIORS["STANDING"].copy()
+            else:
+                return STATE_PRIORS["DESK_SEATED"].copy() if self.desk_mode else STATE_PRIORS["NORMAL_ACTIVITY"].copy()
 
         aspect_ratio = current["bw"] / max(current["bh"], 1.0)
 

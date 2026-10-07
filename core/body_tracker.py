@@ -118,6 +118,9 @@ class SubjectVisualTracker:
                 if top_candidate is not None:
                     if top_candidate["_norm_dist"] <= self.MAX_NORMALIZED_DISTANCE or top_candidate["_iou"] > 0.04:
                         selected_subject = top_candidate
+                    else:
+                        # Fallback: subject moved quickly, stood up, or fell - maintain continuous tracking
+                        selected_subject = max(candidates, key=lambda c: c["mean_confidence"])
 
         if selected_subject is not None:
             self.last_bbox = selected_subject["bbox"].copy()

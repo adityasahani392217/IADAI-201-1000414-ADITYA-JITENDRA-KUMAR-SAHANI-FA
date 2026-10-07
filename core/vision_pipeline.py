@@ -69,8 +69,8 @@ def render_pose_skeleton(
     is_alert: bool = False,
     status_label: Optional[str] = None
 ) -> np.ndarray:
-    """Overlay clean skeletal topology and joint nodes on target BGR frame with Red-Yellow-Green traffic light lines."""
-    if keypoints is None:
+    """Overlay clean skeletal topology, bounding box, and joint nodes on target BGR frame with Red-Yellow-Green traffic light lines."""
+    if keypoints is None and bbox is None:
         return image_bgr
 
     # Dynamic Red-Yellow-Green Line Color Determination:
@@ -88,15 +88,39 @@ def render_pose_skeleton(
         line_color = (70, 195, 60)    # Crisp Healthcare Green (BGR)
         joint_color = (100, 230, 95)  # Vivid Green node
 
-    for joint_a, joint_b in COCO_TOPOLOGY:
-        x1, y1 = int(keypoints[joint_a][0]), int(keypoints[joint_a][1])
-        x2, y2 = int(keypoints[joint_b][0]), int(keypoints[joint_b][1])
-        if min(x1, y1, x2, y2) > 0:
-            cv2.line(image_bgr, (x1, y1), (x2, y2), line_color, 2, cv2.LINE_AA)
+    # Draw subject bounding box if present
+    if bbox is not None and len(bbox) == 4:
+        bx1, by1, bx2, by2 = [int(v) for v in bbox]
+        cv2.rectangle(image_bgr, (bx1, by1), (bx2, by2), line_color, 2, cv2.LINE_AA)
+        tag_text = norm_status.replace("_", " ").title() if norm_status else "Subject Tracked"
+        (tw, th), _ = cv2.getTextSize(tag_text, cv2.FONT_HERSHEY_DUPLEX, 0.50, 1)
+        tag_y1 = max(0, by1 - th - 8)
+        tag_y2 = max(th + 8, by1)
+        cv2.rectangle(image_bgr, (bx1, tag_y1), (bx1 + tw + 14, tag_y2), line_color, -1)
+        cv2.putText(
+            image_bgr,
+            tag_text,
+            (bx1 + 6, tag_y2 - 5),
+            cv2.FONT_HERSHEY_DUPLEX,
+            0.50,
+            (255, 255, 255) if norm_status == "FALL" else (15, 15, 15),
+            1,
+            cv2.LINE_AA
+        )
 
-    for x, y in keypoints:
-        if x > 0 and y > 0:
-            cv2.circle(image_bgr, (int(x), int(y)), 4, joint_color, -1, cv2.LINE_AA)
+    if keypoints is not None:
+        for joint_a, joint_b in COCO_TOPOLOGY:
+            if joint_a < len(keypoints) and joint_b < len(keypoints):
+                x1, y1 = int(keypoints[joint_a][0]), int(keypoints[joint_a][1])
+                x2, y2 = int(keypoints[joint_b][0]), int(keypoints[joint_b][1])
+                if min(x1, y1, x2, y2) > 0:
+                    cv2.line(image_bgr, (x1, y1), (x2, y2), line_color, 3, cv2.LINE_AA)
+
+        for kp in keypoints:
+            x, y = int(kp[0]), int(kp[1])
+            if x > 0 and y > 0:
+                cv2.circle(image_bgr, (x, y), 5, joint_color, -1, cv2.LINE_AA)
+                cv2.circle(image_bgr, (x, y), 2, (255, 255, 255), -1, cv2.LINE_AA)
 
     return image_bgr
 
@@ -204,7 +228,7 @@ class SafeFallPipelineCoordinator:
             yolo_results = self.pose_detector.predict(
                 frame_bgr,
                 verbose=False,
-                conf=0.25,
+                conf=0.15,
                 imgsz=int(img_size),
                 device=self.yolo_device
             )[0]
@@ -435,10 +459,10 @@ class LiveStreamWorker(VideoProcessorBase):
             "fall_thr": 0.60,
             "need": 4,
             "alpha": 0.35,
-            "stride": 1,
+            "stride": 2,
             "enhance": False,
             "gamma": 1.6,
-            "imgsz": 480,
+            "imgsz": 320,
             "desk_mode": True,
             "force_legacy": False
         }
@@ -669,7 +693,7 @@ class LiveStreamWorker(VideoProcessorBase):
                     self.last_subject = None
                     self.current_state = {"label": "NO PERSON", "conf": 0.0, "probs": [1.0 / len(ACTIVITY_CLASSES)] * len(ACTIVITY_CLASSES)}
 
-        person_visible = self.consecutive_misses == 0 and self.last_subject is not None
+        person_visible = self.consecutive_misses <= 3 and self.last_subject is not None
         curr_label = self.current_state["label"]
         curr_conf = self.current_state["conf"]
         is_fall = curr_label == "FALL"

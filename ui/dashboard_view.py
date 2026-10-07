@@ -359,7 +359,7 @@ def render_live_monitor_page(
             mode=WebRtcMode.SENDRECV,
             rtc_configuration=WEBRTC_ICE_SERVERS,
             media_stream_constraints={
-                "video": {"width": {"ideal": 640}, "height": {"ideal": 480}, "frameRate": {"ideal": 24}},
+                "video": True,
                 "audio": False
             },
             video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),

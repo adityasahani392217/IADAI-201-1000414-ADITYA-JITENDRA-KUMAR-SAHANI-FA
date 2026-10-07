@@ -170,8 +170,9 @@ class SafeFallPipelineCoordinator:
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.yolo_device = 0 if torch.cuda.is_available() else "cpu"
         self.inference_lock = threading.Lock()
+        if self.device.type == "cpu":
+            torch.set_num_threads(2)
 
         self.pose_model_path = self._locate_pose_model()
         self.pose_detector = YOLO(self.pose_model_path)
@@ -221,16 +222,18 @@ class SafeFallPipelineCoordinator:
         self,
         frame_bgr: np.ndarray,
         tracker: SubjectVisualTracker,
-        img_size: int = 480
+        img_size: int = 320
     ) -> Optional[Dict[str, Any]]:
-        """Run YOLOv8 pose detector and track primary subject."""
-        with self.inference_lock:
+        """Run YOLOv8 pose detector with inference_mode and class filtering for maximum FPS."""
+        with self.inference_lock, torch.inference_mode():
             yolo_results = self.pose_detector.predict(
                 frame_bgr,
                 verbose=False,
                 conf=0.15,
-                imgsz=int(img_size),
-                device=self.yolo_device
+                imgsz=min(int(img_size), 320),
+                device=self.yolo_device,
+                classes=[0],
+                max_det=2
             )[0]
         return tracker.update(yolo_results, frame_bgr.shape)
 
@@ -570,11 +573,8 @@ class LiveStreamWorker(VideoProcessorBase):
         badge_h = 44
         bx, by = 16, 16
 
-        # Translucent white rounded badge surface
-        sub_img = frame_bgr[by:by + badge_h, bx:bx + badge_w]
-        white_rect = np.full(sub_img.shape, 255, dtype=np.uint8)
-        res = cv2.addWeighted(sub_img, 0.20, white_rect, 0.80, 1.0)
-        frame_bgr[by:by + badge_h, bx:bx + badge_w] = res
+        # Fast solid rounded pill badge (zero memory allocation)
+        cv2.rectangle(frame_bgr, (bx, by), (bx + badge_w, by + badge_h), (250, 252, 250), -1)
         cv2.rectangle(frame_bgr, (bx, by), (bx + badge_w, by + badge_h), badge_border, 1, cv2.LINE_AA)
 
         # Status dot
@@ -748,8 +748,13 @@ class LiveStreamWorker(VideoProcessorBase):
         """Streamlit-webrtc worker frame receptor."""
         img = frame.to_ndarray(format="bgr24")
         try:
+            h, w = img.shape[:2]
+            if w > 640:
+                scale = 640.0 / w
+                img = cv2.resize(img, (640, int(h * scale)), interpolation=cv2.INTER_LINEAR)
             img = self.process_frame(img)
         except Exception as e:
             self._set_telemetry(error=str(e)[:140])
             cv2.putText(img, "Processing latency", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 165, 255), 2)
         return av.VideoFrame.from_ndarray(img, format="bgr24")
+

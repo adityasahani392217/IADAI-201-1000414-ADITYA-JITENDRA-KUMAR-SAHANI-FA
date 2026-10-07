@@ -128,17 +128,19 @@ def compute_segment_midpoint(
 
 
 def compute_joint_angle_degrees(point_a: np.ndarray, vertex_b: np.ndarray, point_c: np.ndarray) -> float:
-    """Compute interior angle at vertex_b formed by segments (b -> a) and (b -> c)."""
-    vec_ba = np.asarray(point_a, dtype=np.float32) - np.asarray(vertex_b, dtype=np.float32)
-    vec_bc = np.asarray(point_c, dtype=np.float32) - np.asarray(vertex_b, dtype=np.float32)
+    """Compute interior angle at vertex_b formed by segments (b -> a) and (b -> c) with C-speed hypot."""
+    v_ba_x = float(point_a[0] - vertex_b[0])
+    v_ba_y = float(point_a[1] - vertex_b[1])
+    v_bc_x = float(point_c[0] - vertex_b[0])
+    v_bc_y = float(point_c[1] - vertex_b[1])
 
-    norm_ba = float(np.linalg.norm(vec_ba))
-    norm_bc = float(np.linalg.norm(vec_bc))
+    norm_ba = math.hypot(v_ba_x, v_ba_y)
+    norm_bc = math.hypot(v_bc_x, v_bc_y)
 
     if norm_ba * norm_bc == 0.0:
         return 180.0
 
-    dot_product = float(np.dot(vec_ba, vec_bc) / (norm_ba * norm_bc))
+    dot_product = (v_ba_x * v_bc_x + v_ba_y * v_bc_y) / (norm_ba * norm_bc)
     dot_product = max(-1.0, min(1.0, dot_product))
     return float(math.degrees(math.acos(dot_product)))
 
@@ -190,7 +192,7 @@ class KinematicPostureEngine:
         # Torso segment length
         torso_length = None
         if shoulder_mid is not None and hip_mid is not None:
-            torso_length = float(np.linalg.norm(hip_mid - shoulder_mid))
+            torso_length = float(math.hypot(hip_mid[0] - shoulder_mid[0], hip_mid[1] - shoulder_mid[1]))
 
         observation = {
             "timestamp": float(timestamp),

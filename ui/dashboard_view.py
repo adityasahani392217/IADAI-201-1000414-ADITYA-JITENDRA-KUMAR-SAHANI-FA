@@ -22,6 +22,8 @@ import cv2
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
+
 
 try:
     from streamlit_webrtc import WebRtcMode, webrtc_streamer
@@ -103,7 +105,8 @@ def render_diagnostic_report(
             unsafe_allow_html=True
         )
         if st.session_state.get("setting_alarm_enabled", True):
-            st.html(render_escalating_alarm_synthesizer(fall_dur, st.session_state.get("setting_alarm_volume", 0.8), is_active=True))
+            components.html(render_escalating_alarm_synthesizer(fall_dur, st.session_state.get("setting_alarm_volume", 0.8), is_active=True), height=115)
+
 
     # Primary Diagnostic Verdict Card
     verdict_card = (
@@ -458,7 +461,8 @@ def render_live_monitor_page(
                     )
                     if options.get("alarm_enabled", True) and time.time() >= st.session_state.get("silence_alarm_until", 0.0):
                         with alarm_slot:
-                            st.html(render_escalating_alarm_synthesizer(1.0, options.get("alarm_volume", 0.8), is_active=True))
+                            components.html(render_escalating_alarm_synthesizer(1.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+
                 elif report["label"] == "OFF_BALANCE":
                     state_color = "var(--status-amber)"
                 else:
@@ -535,7 +539,8 @@ def render_live_monitor_page(
                 )
                 st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
                 with alarm_slot:
-                    st.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True))
+                    components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+
                 st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
 
     elif webrtc_context is not None and webrtc_context.state.playing:
@@ -657,7 +662,8 @@ def render_live_monitor_page(
                 last_stage = st.session_state.get("_live_alarm_stage", 0)
                 if not alarm_playing or current_stage != last_stage:
                     with alarm_slot:
-                        st.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True))
+                        components.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True), height=115)
+
                     alarm_playing = True
                     st.session_state["_live_alarm_stage"] = current_stage
             elif not should_alarm and alarm_playing:
@@ -1340,7 +1346,8 @@ def render_settings_page(
         test_slot = st.empty()
         if st.button("Test Emergency Buzzer Sound", use_container_width=True):
             with test_slot:
-                st.html(render_audio_buzzer_html(False, st.session_state["setting_alarm_volume"]))
+                components.html(render_audio_buzzer_html(False, st.session_state["setting_alarm_volume"]), height=50)
+
             st.toast("🚨 Emergency siren audio triggered", icon="🔊")
 
     with tab_disp:
@@ -1506,7 +1513,8 @@ def render_emergency_sos_page(
 
         # Render audio player if active
         if st.session_state.get("alarm_test_active", False):
-            st.html(render_escalating_alarm_synthesizer(sim_sec, options.get("alarm_volume", 0.8), is_active=True))
+            components.html(render_escalating_alarm_synthesizer(sim_sec, options.get("alarm_volume", 0.8), is_active=True), height=115)
+
         else:
             st.caption("Click any stage button above to audition the escalating siren in your browser.")
 

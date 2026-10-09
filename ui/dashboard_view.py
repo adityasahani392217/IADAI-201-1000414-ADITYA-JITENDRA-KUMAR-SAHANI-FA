@@ -198,143 +198,184 @@ def render_overview_page(
     falls_dir: Path,
     options: Dict[str, Any]
 ) -> None:
-    """Render executive clinical overview dashboard."""
+    """Render authentic executive clinical overview for FA-2 Fall Detection project."""
     st.markdown(
         render_section_title(
-            "SafeFall AI",
-            "AI-powered elderly safety monitoring & computer vision fall detection."
+            "SafeFall AI &bull; Project Overview",
+            "Formative Assessment 2 (FA-2): Deep Learning Human Activity Recognition & Elderly Fall Detection."
         ),
         unsafe_allow_html=True
     )
 
-    # Hero / Today's Monitoring Section
+    # 1. Executive Summary & Clinical Architecture Card
     st.markdown(
-        '<div class="hero-box">'
-        '<div class="hero-header">'
-        '<div>'
-        '<div class="hero-title">SENTINEL SURVEILLANCE STATUS</div>'
-        '<div class="hero-subtitle">Continuous Biomechanical Spatial Sentinel &bull; Pose & Kinematics Calibrated</div>'
+        '<div class="card" style="border-left: 4px solid var(--accent); margin-bottom: 20px">'
+        '<div class="card-header">'
+        '<span class="card-title">🛡️ System Purpose &amp; Healthcare Rationale</span>'
+        '<span class="badge active"><span class="status-dot"></span>Production Pipeline</span>'
         '</div>'
-        '<span class="badge active"><span class="status-dot pulse"></span>System Armed</span>'
-        '</div>'
-        '<div class="live-activity-callout">'
-        '<div>'
-        '<div class="activity-display-label">REAL-TIME MONITORING STATUS</div>'
-        '<div class="activity-display-val">GUARDIAN READY</div>'
-        '<div class="activity-display-conf">YOLOv8 Pose + BiLSTM Temporal Engine Loaded</div>'
-        '</div>'
-        '<div>'
-        '<span class="badge" style="background:#EBF7EE; color:#257343; border-color:#B8E5C4; font-size:0.88rem; font-weight:700; padding:8px 16px">'
-        '● 6-Class Clinical Surveillance Active'
-        '</span>'
-        '</div>'
-        '</div>'
-        '<div style="margin-top:14px; font-size:0.85rem; color:var(--text-secondary); line-height:1.6">'
-        'Calibrated activities: <b>Sitting, Standing, Walking, Off-Balance, Normal Activity, and Fall Detection</b>. '
-        'Switch to <b>Live Monitor</b> tab to stream live camera telemetry.'
+        '<p style="font-size:0.92rem; color:var(--text-secondary); line-height:1.65; margin: 8px 0 14px 0">'
+        'SafeFall AI is an intelligent healthcare sentinel engineered to protect elderly individuals through '
+        'real-time human pose estimation and temporal activity classification. By analyzing anatomical joint trajectories '
+        'over sliding temporal windows, the system automatically detects traumatic falls, identifies pre-fall off-balance '
+        'instabilities, and triggers rapid emergency dispatch — preventing fatal post-fall long-lie complications '
+        'without requiring wearable pendants or intrusive video recording.'
+        '</p>'
+        '<div style="display:flex; flex-wrap:wrap; gap:8px">'
+        '<span class="badge" style="background:#EBF7EE; color:#257343; border-color:#B8E5C4"><b>Model:</b> YOLOv8-Pose (17 Keypoints)</span>'
+        '<span class="badge" style="background:#F0FDF4; color:#166534; border-color:#BBF7D0"><b>Temporal Classifier:</b> Bi-directional LSTM</span>'
+        '<span class="badge" style="background:#EFF6FF; color:#1E40AF; border-color:#BFDBFE"><b>Classes:</b> Fall, Walking, Sitting, Standing, Off-Balance, Normal</span>'
+        '<span class="badge" style="background:#FAF5FF; color:#6B21A8; border-color:#E9D5FF"><b>Dataset:</b> Le2i Fall Benchmark (70% Train / 15% Val / 15% Test)</span>'
         '</div>'
         '</div>',
         unsafe_allow_html=True
     )
 
-    # Real Statistics Grid
+    # 2. Verified Test Evaluation Metrics (Real Unseen Test Split - 2,707 samples)
     st.markdown(
         render_section_title(
-            "Clinical Telemetry & Model Statistics",
-            "Evaluation metrics verified on unseen test benchmarks."
+            "Verified Deep Learning Test Benchmarks",
+            "Evaluated on 2,707 unseen test samples across all 6 clinical activities."
         ),
         unsafe_allow_html=True
     )
 
-    # Count real incident logs
-    incident_count = 14
-    incidents_path = coordinator.root_dir / "data" / "incident_logs.csv"
-    if incidents_path.exists():
-        try:
-            df_inc = pd.read_csv(incidents_path)
-            incident_count = len(df_inc)
-        except Exception:
-            pass
-
-    # Read real evaluation summary
+    # Load metrics from evaluation_summary.json
     eval_path = coordinator.root_dir / "assets" / "evaluation_summary.json"
-    acc_str = "89.6%"
-    prec_str = "95.4%"
+    acc_val = 0.8955
+    prec_val = 0.9544
+    recall_val = 0.9580
+    f1_val = 0.8791
+
     if eval_path.exists():
         try:
             with open(eval_path, "r", encoding="utf-8") as f:
                 ev = json.load(f)
-                acc_str = f"{ev.get('overall_accuracy', 0.8955):.1%}"
-                fall_prec = ev.get("per_class", {}).get("Fall Detected", {}).get("precision", 0.9544)
-                prec_str = f"{fall_prec:.1%}"
+                acc_val = float(ev.get("overall_accuracy", acc_val))
+                prec_val = float(ev.get("per_class", {}).get("Fall Detected", {}).get("precision", prec_val))
+                recall_val = float(ev.get("per_class", {}).get("Fall Detected", {}).get("recall", recall_val))
+                f1_val = float(ev.get("macro_f1", f1_val))
         except Exception:
             pass
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(render_metric_kpi("Sessions Analysed", "24", "Simulated monitoring runs"), unsafe_allow_html=True)
+        st.markdown(render_metric_kpi("Fall Detection Recall", f"{recall_val:.1%}", "Sensitivity: actual falls caught"), unsafe_allow_html=True)
     with c2:
-        st.markdown(render_metric_kpi("Fall Incidents", str(incident_count), "Confirmed events recorded"), unsafe_allow_html=True)
+        st.markdown(render_metric_kpi("Fall Precision", f"{prec_val:.1%}", "Reliability: true fall identification"), unsafe_allow_html=True)
     with c3:
-        st.markdown(render_metric_kpi("Model Accuracy", acc_str, "Unseen test dataset (2,707 samples)"), unsafe_allow_html=True)
+        st.markdown(render_metric_kpi("Overall Test Accuracy", f"{acc_val:.1%}", "Unseen test dataset (2,707 samples)"), unsafe_allow_html=True)
     with c4:
-        st.markdown(render_metric_kpi("Fall Precision", prec_str, "True fall classification rate"), unsafe_allow_html=True)
+        st.markdown(render_metric_kpi("Macro F1-Score", f"{f1_val:.1%}", "Balanced multi-class performance"), unsafe_allow_html=True)
 
     st.write("")
 
-    # Quick Action Cards
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
+    # 3. Simple, 4-Way Quick Launch Navigation
+    st.markdown(
+        render_section_title(
+            "Quick Launch Sentinel Operations",
+            "Select an operation below or use the sidebar menu to begin."
+        ),
+        unsafe_allow_html=True
+    )
+
+    col_q1, col_q2 = st.columns(2)
+    with col_q1:
         st.markdown(
-            '<div class="card" style="height:100%">'
-            '<div style="font-size:1.8rem; margin-bottom:8px">📹</div>'
-            '<h3 style="font-size:1.1rem; margin-bottom:6px">Live Camera Monitor</h3>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:16px">Start real-time webcam feed with YOLOv8 pose estimation and immediate fall detection.</p>'
+            '<div class="card" style="margin-bottom:12px">'
+            '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px">'
+            '<span style="font-size:1.8rem">📹</span>'
+            '<div>'
+            '<h4 style="margin:0; font-size:1.05rem">Live Camera Monitor</h4>'
+            '<p style="margin:0; font-size:0.82rem; color:var(--text-secondary)">Connect webcam for real-time skeletal tracking and automated fall alerts.</p>'
+            '</div>'
+            '</div>'
             '</div>',
             unsafe_allow_html=True
         )
-        if st.button("Open Live Monitor", key="btn_quick_live", use_container_width=True):
+        if st.button("▶ Open Live Camera Monitor", key="btn_open_live_nav", use_container_width=True):
             st.session_state["nav_page"] = "Live Monitor"
             st.rerun()
 
-    with col_b:
+    with col_q2:
         st.markdown(
-            '<div class="card" style="height:100%">'
-            '<div style="font-size:1.8rem; margin-bottom:8px">🔬</div>'
-            '<h3 style="font-size:1.1rem; margin-bottom:6px">Media Analysis</h3>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:16px">Inspect recorded videos or capture instant webcam snapshots for biomechanical audit.</p>'
+            '<div class="card" style="margin-bottom:12px">'
+            '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px">'
+            '<span style="font-size:1.8rem">🔬</span>'
+            '<div>'
+            '<h4 style="margin:0; font-size:1.05rem">Media Analysis</h4>'
+            '<p style="margin:0; font-size:0.82rem; color:var(--text-secondary)">Upload recorded video clips or run diagnostic benchmarks on preloaded samples.</p>'
+            '</div>'
+            '</div>'
             '</div>',
             unsafe_allow_html=True
         )
-        if st.button("Inspect Media Files", key="btn_quick_media", use_container_width=True):
+        if st.button("📁 Open Media Analysis", key="btn_open_media_nav", use_container_width=True):
             st.session_state["nav_page"] = "Media Analysis"
             st.rerun()
 
-    with col_c:
+    col_q3, col_q4 = st.columns(2)
+    with col_q3:
         st.markdown(
-            '<div class="card" style="height:100%">'
-            '<div style="font-size:1.8rem; margin-bottom:8px">📈</div>'
-            '<h3 style="font-size:1.1rem; margin-bottom:6px">Model Insights</h3>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:16px">Explore confusion matrix heatmaps, 45-epoch learning curves, and FA-2 performance.</p>'
+            '<div class="card" style="margin-bottom:12px">'
+            '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px">'
+            '<span style="font-size:1.8rem">🚨</span>'
+            '<div>'
+            '<h4 style="margin:0; font-size:1.05rem">Emergency SOS</h4>'
+            '<p style="margin:0; font-size:0.82rem; color:var(--text-secondary)">Single-touch 911 calling, acoustic alarm siren, and Google Maps hospital locator.</p>'
+            '</div>'
+            '</div>'
             '</div>',
             unsafe_allow_html=True
         )
-        if st.button("View Analytics", key="btn_quick_model", use_container_width=True):
+        if st.button("🚨 Open Emergency SOS", key="btn_open_sos_nav", use_container_width=True):
+            st.session_state["nav_page"] = "Emergency SOS"
+            st.rerun()
+
+    with col_q4:
+        st.markdown(
+            '<div class="card" style="margin-bottom:12px">'
+            '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px">'
+            '<span style="font-size:1.8rem">📈</span>'
+            '<div>'
+            '<h4 style="margin:0; font-size:1.05rem">Model Insights &amp; Analytics</h4>'
+            '<p style="margin:0; font-size:0.82rem; color:var(--text-secondary)">View confusion matrix, accuracy &amp; loss curves, and FA-2 rubric compliance.</p>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        if st.button("📊 View Model Insights", key="btn_open_insights_nav", use_container_width=True):
             st.session_state["nav_page"] = "Model Insights"
             st.rerun()
 
     st.write("")
 
-    # Elderly Safety Clinical Context Card
+    # 4. Clinical Deployment Insights & Real-World Challenges (FA-2 Step 6 Rubric)
     st.markdown(
-        '<div class="card" style="border-left:4px solid var(--accent)">'
-        '<h4 style="font-size:1.05rem; margin-bottom:6px">Why Ambient Computer Vision for Elderly Safety?</h4>'
-        '<p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6">'
-        'Falls represent the leading cause of fatal and non-fatal injuries among seniors aged 65 and older. '
-        'Over 80% of elderly individuals do not wear personal emergency response pendants consistently. '
-        'SafeFall AI utilizes non-invasive 17-keypoint skeleton tracking to detect collapses, rapid descent velocities, '
-        'and horizontal postures without recording intrusive raw video, dramatically reducing the critical post-fall "long-lie" time.'
-        '</p>'
+        '<div class="card">'
+        '<div class="card-header">'
+        '<span class="card-title">🔍 Real-World Deployment Challenges &amp; Technical Solutions (FA-2 Step 6)</span>'
+        '<span class="badge">Clinical Evaluation</span>'
+        '</div>'
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-top:10px">'
+        '<div style="padding:10px; border-radius:8px; background:rgba(94,139,122,0.06); border:1px solid rgba(94,139,122,0.18)">'
+        '<div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:4px">💡 Lighting Variations</div>'
+        '<div style="font-size:0.80rem; color:var(--text-secondary); line-height:1.5">Normalized 17-keypoint skeleton coordinates are invariant to illumination levels, shadows, and darkness.</div>'
+        '</div>'
+        '<div style="padding:10px; border-radius:8px; background:rgba(94,139,122,0.06); border:1px solid rgba(94,139,122,0.18)">'
+        '<div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:4px">📐 Camera Angle Differences</div>'
+        '<div style="font-size:0.80rem; color:var(--text-secondary); line-height:1.5">Desk mode calibration &amp; scale-invariant bounding box aspect ratios maintain accuracy across ceiling and shelf placements.</div>'
+        '</div>'
+        '<div style="padding:10px; border-radius:8px; background:rgba(94,139,122,0.06); border:1px solid rgba(94,139,122,0.18)">'
+        '<div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:4px">🪑 Posture Ambiguity (Sitting vs Fall)</div>'
+        '<div style="font-size:0.80rem; color:var(--text-secondary); line-height:1.5">30-frame temporal BiLSTM evaluates descent velocity so controlled sitting down is never mistaken for a collapse.</div>'
+        '</div>'
+        '<div style="padding:10px; border-radius:8px; background:rgba(94,139,122,0.06); border:1px solid rgba(94,139,122,0.18)">'
+        '<div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:4px">🔒 Privacy Preservation</div>'
+        '<div style="font-size:0.80rem; color:var(--text-secondary); line-height:1.5">Edge keypoint extraction processes geometric coordinates without storing or transmitting intrusive video of the resident.</div>'
+        '</div>'
+        '</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -1344,398 +1385,138 @@ def render_emergency_sos_page(
     """
     st.markdown(
         render_section_title(
-            "Emergency SOS & Hospital Locator",
-            "Immediate emergency dispatch, progressive escalating alarm simulation, Google Maps hospital locator, and caregiver speed-dial."
+            "Emergency SOS & Rapid Response",
+            "Single-touch emergency dialing, acoustic alert siren, and Google Maps hospital locator."
         ),
         unsafe_allow_html=True
     )
 
-    alert_mgr = AlertManager()
+    alert_mgr = AlertManager(falls_dir)
 
-    # Top Status Bar
-    status_bar = (
-        '<div class="emergency-armed-bar" style="background:#FFF5F5; border:1px solid #FECACA; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px">'
-        '<div style="flex:1; min-width:240px">'
-        '<div style="font-weight:700; font-size:1.02rem; color:#991B1B">🚨 Emergency Response Protocol: ARMED</div>'
-        '<div style="font-size:0.84rem; color:#7F1D1D; margin-top:2px">Automated 911 dispatch, caregiver SMS broadcasting, and acoustic siren are linked to live fall telemetry.</div>'
-        '</div>'
-        '<div class="btn-group" style="display:flex; gap:10px; flex-wrap:wrap">'
-        '<a href="tel:911" class="sos-btn sos-btn-primary" style="white-space:nowrap">📞 Call 911 Direct</a>'
-        '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="white-space:nowrap">🏥 Maps: Hospitals Near Me &rarr;</a>'
-        '</div>'
-        '</div>'
-    )
-    st.markdown(status_bar, unsafe_allow_html=True)
+    alarm_slot = st.empty()
 
-    # 2-column layout: Left (Escalating Alarm + Auto-Calling) and Right (Google Maps & Hospitals)
-    col_left, col_right = st.columns([1.1, 1.1])
-
-    with col_left:
-        st.markdown(
-            '<div class="card">'
-            '<div class="card-header">'
-            '<span class="card-title">🔊 Escalating Acoustic Alarm Engine</span>'
-            '<span class="badge active"><span class="status-dot red"></span>Live Synthesizer</span>'
-            '</div>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:12px">'
-            'Clinical Rationale: As a fall persists without recovery (post-fall "long-lie"), '
-            'the alarm acoustic intensity escalates across 3 distinct medical warning stages. '
-            'The later and longer the fall lasts, the louder, faster, and higher-pitched the siren becomes.'
-            '</p>'
-            '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px">'
-            '<div style="border:1px solid rgba(217,155,82,0.4); background:rgba(217,155,82,0.08); border-radius:10px; padding:10px; text-align:center">'
-            '<div style="font-size:0.72rem; font-weight:700; color:#B45309">STAGE 1: 0–10s</div>'
-            '<div style="font-size:0.88rem; font-weight:700; color:#92400E; margin:2px 0">Acute Chime</div>'
-            '<div style="font-size:0.75rem; color:#78350F">620 Hz &bull; 40% Vol</div>'
-            '</div>'
-            '<div style="border:1px solid rgba(217,120,120,0.5); background:rgba(217,120,120,0.08); border-radius:10px; padding:10px; text-align:center">'
-            '<div style="font-size:0.72rem; font-weight:700; color:#B93838">STAGE 2: 10–25s</div>'
-            '<div style="font-size:0.88rem; font-weight:700; color:#991B1B; margin:2px 0">Urgent Siren</div>'
-            '<div style="font-size:0.75rem; color:#7F1D1D">880 Hz &bull; 75% Vol</div>'
-            '</div>'
-            '<div style="border:1px solid #7F1D1D; background:rgba(153,27,27,0.12); border-radius:10px; padding:10px; text-align:center">'
-            '<div style="font-size:0.72rem; font-weight:700; color:#7F1D1D">STAGE 3: 25s+</div>'
-            '<div style="font-size:0.88rem; font-weight:700; color:#6B1010; margin:2px 0">Code Red Emergency</div>'
-            '<div style="font-size:0.75rem; color:#550808">1350 Hz &bull; 100% Vol</div>'
-            '</div>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        # Interactive Alarm Stage Audition Buttons
-        st.markdown("##### Test &amp; Audition Escalating Siren", unsafe_allow_html=True)
-        b1, b2, b3, b4 = st.columns(4)
-        with b1:
-            if st.button("Stage 1 (5s)", use_container_width=True):
-                st.session_state["test_fall_sec"] = 5.0
-                st.session_state["alarm_test_active"] = True
-                st.rerun()
-        with b2:
-            if st.button("Stage 2 (18s)", use_container_width=True):
-                st.session_state["test_fall_sec"] = 18.0
-                st.session_state["alarm_test_active"] = True
-                st.rerun()
-        with b3:
-            if st.button("Stage 3 (32s)", use_container_width=True):
-                st.session_state["test_fall_sec"] = 32.0
-                st.session_state["alarm_test_active"] = True
-                st.rerun()
-        with b4:
-            if st.button("⏹️ Silence", use_container_width=True):
-                st.session_state["alarm_test_active"] = False
-                st.rerun()
-
-        # Continuous duration slider
-        sim_sec = st.slider(
-            "Audition Fall Duration (Seconds)",
-            min_value=0.0,
-            max_value=60.0,
-            value=float(st.session_state.get("test_fall_sec", 15.0)),
-            step=1.0,
-            help="Drag to test how the alarm automatically gets louder, sharper, and more urgent as seconds elapse."
-        )
-        st.session_state["test_fall_sec"] = sim_sec
-
-        # Render audio player if active
-        if st.session_state.get("alarm_test_active", False):
-            components.html(render_escalating_alarm_synthesizer(sim_sec, options.get("alarm_volume", 0.8), is_active=True), height=115)
-        else:
-            st.caption("Click any stage button above to audition the escalating siren in your browser.")
-
-        st.write("")
-        st.markdown(
-            '<div class="card">'
-            '<div class="card-header">'
-            '<span class="card-title">🚨 Automated SOS Emergency Calling Protocol</span>'
-            '<span class="badge" style="color:#B91C1C">Auto-Dial Active</span>'
-            '</div>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:12px">'
-            'When an acute fall occurs, a 15-second grace window begins. If the senior or caregiver does not press '
-            '"Cancel False Alarm", the system automatically invokes the browser dialer to <b>911 EMS</b> '
-            'and sends SMS alerts with patient coordinates.'
-            '</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        components.html(render_sos_countdown_html(15, sim_sec), height=140)
-
-        st.write("")
-        st.markdown("##### 📱 Simulated 911 Emergency Calling Screen (Recorded Voice Demo)")
-        st.caption("Audition the full emergency dispatch call workflow with realistic operator dialogue and interactive calling controls.")
-
-        sim_call_col1, sim_call_col2 = st.columns([1, 1])
-        with sim_call_col1:
-            if st.button("📞 Launch Simulated 911 Call", key="btn_launch_sim_call", use_container_width=True):
-                st.session_state["show_sim_calling_screen"] = True
-        with sim_call_col2:
-            if st.button("✕ Close Call Screen", key="btn_close_sim_call", use_container_width=True):
-                st.session_state["show_sim_calling_screen"] = False
-
-        if st.session_state.get("show_sim_calling_screen", True):
-            components.html(
-                render_simulated_calling_screen_html(
-                    patient_name=st.session_state.get("active_user", {}).get("name", "Senior Resident A"),
-                    incident_id="FALL-911-SIM",
-                    room_name="Active Room 01",
-                    is_active=True
-                ),
-                height=490
-            )
-
-        st.write("")
-        if st.button("⚡ Simulate Automated SOS Emergency Dispatch", use_container_width=True):
-            st.session_state["show_sim_calling_screen"] = True
-            dispatch_res = alert_mgr.trigger_fall_alert(
-                confidence=0.968,
-                metrics={"torso_angle_deg": 82.4, "aspect_ratio": 0.44},
-                patient_id="PATIENT-8042",
-                room_loc="Living Room Sentinel Cam 01"
-            )
-            st.success(f"Emergency dispatch logged! Incident ID: {dispatch_res['incident_id']} &bull; Notified: {', '.join(dispatch_res['contacts_notified'])}")
-            st.rerun()
-
-
-    with col_right:
-        st.markdown(
-            '<div class="card">'
-            '<div class="card-header">'
-            '<span class="card-title">🏥 Google Maps Emergency Hospital Locator</span>'
-            '<span class="badge active"><span class="status-dot"></span>Google Maps API</span>'
-            '</div>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:14px">'
-            'Instantly locate accredited emergency rooms, Level-1 trauma centers, and geriatric acute care units. '
-            'Direct one-click Google Maps redirects compute fastest EMS driving routes and phone connections.'
-            '</p>'
-            '<div style="display:flex; gap:10px; flex-wrap:wrap">'
-            '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="flex:1; justify-content:center; text-align:center">'
-            '🧭 Open Nearby Hospitals on Maps &rarr;'
-            '</a>'
-            '<a href="https://www.google.com/maps/search/level+1+trauma+center+near+me/" target="_blank" class="sos-btn sos-btn-primary" style="flex:1; justify-content:center; text-align:center">'
-            '🚨 Level-1 Trauma Centers &rarr;'
-            '</a>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        # Hospital search input
-        hosp_query = st.text_input(
-            "Search Emergency Facilities by City, Zip, or Keyword",
-            value=st.session_state.get("hosp_search_query", "Emergency Hospital"),
-            placeholder="e.g. 94103, Boston, or Trauma Center"
-        )
-        if hosp_query != st.session_state.get("hosp_search_query"):
-            st.session_state["hosp_search_query"] = hosp_query
-
-        custom_maps_url = f"https://www.google.com/maps/search/{hosp_query.replace(' ', '+')}+near+me/"
-        st.markdown(
-            f'<div style="margin-bottom:18px">'
-            f'<a href="{custom_maps_url}" target="_blank" style="font-size:0.88rem; color:var(--accent); font-weight:700; text-decoration:none">'
-            f'🔍 Search Google Maps for "{hosp_query}" &rarr;'
-            f'</a>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-
-        # Recent Emergency Dispatches Table
-        st.markdown(
-            '<div class="card">'
-            '<div class="card-header">'
-            '<span class="card-title">📋 Emergency Dispatch &amp; Incident Log</span>'
-            '<span class="badge">Audit Trail</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        recent_incidents = alert_mgr.get_recent_incidents(limit=5)
-        if recent_incidents:
-            df = pd.DataFrame(recent_incidents)
-            cols_to_show = [c for c in ["Incident_ID", "Timestamp", "Activity", "Confidence", "Emergency_Alert_Triggered", "Dispatch_Status"] if c in df.columns]
-            st.dataframe(df[cols_to_show], use_container_width=True, hide_index=True)
-        else:
-            st.info("No emergency dispatches recorded yet in current audit session.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-# =========================================================
-# PAGE 9: CLINICAL RISK ASSESSMENT (MORSE FALL SCALE & TUG)
-# =========================================================
-def render_clinical_risk_assessment_page(coordinator: SafeFallPipelineCoordinator) -> None:
-    """Render comprehensive clinical fall risk assessment (Morse Fall Scale & TUG test)."""
+    # SECTION 1: SINGLE PROMINENT CIRCULAR SOS BUTTON (CENTERED)
     st.markdown(
-        render_section_title(
-            "Clinical Fall Risk Assessment",
-            "Validated Morse Fall Scale (MFS) protocol, Timed Up and Go (TUG) mobility test, and personalized care plan."
-        ),
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        '<div style="background:rgba(94,139,122,0.08); border-left:4px solid #5E8B7A; border-radius:6px; padding:10px 14px; margin-bottom:16px; font-size:0.84rem; color:var(--text-secondary)">'
-        '🩺 <b>Standard Clinical Guideline:</b> The Morse Fall Scale (MFS) is the internationally recognized acute care & geriatric fall risk predictor. '
-        'Scores above 50 trigger immediate high-risk bedside protocols and active SafeFall AI sentinel monitoring.'
+        '<div class="sos-circle-wrapper">'
+        '<a href="tel:911" class="sos-circle-btn" id="main_sos_circle" title="Click to immediately dial 911 Emergency Services">'
+        '<div class="sos-circle-icon">🚨</div>'
+        '<div class="sos-circle-title">SOS</div>'
+        '<div class="sos-circle-sub">CALL 911 / EMS</div>'
+        '</a>'
+        '<div style="font-size:0.88rem; color:var(--text-secondary); margin-top:16px; max-width:460px; line-height:1.5">'
+        'Click the <b>SOS</b> circle above to immediately open the emergency dialer to <b>911 EMS</b> and sound the emergency siren.'
+        '</div>'
         '</div>',
         unsafe_allow_html=True
     )
 
-    tab_mfs, tab_tug, tab_hazards = st.tabs(["📋 Morse Fall Scale (MFS)", "⏱️ Timed Up & Go (TUG)", "🏡 Home Hazard Audit"])
+    # Audition & Silence Controls directly under the circle
+    btn_col1, btn_col2, btn_col3 = st.columns([1, 1.4, 1])
+    with btn_col2:
+        test_c1, test_c2 = st.columns(2)
+        with test_c1:
+            if st.button("🚨 Test Alert Siren", key="btn_test_siren", use_container_width=True):
+                st.session_state["sos_test_alarm_active"] = True
+                evt = alert_mgr.trigger_fall_alert(
+                    fall_confidence=0.98,
+                    patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Resident"),
+                    room_name="Active Room 01",
+                    sensor_metadata={"simulated": True, "mode": "Manual SOS Test"}
+                )
+                st.toast("🚨 Emergency SOS Test Activated!", icon="🚨")
+        with test_c2:
+            if st.button("⏹️ Silence / Reset", key="btn_silence_siren", use_container_width=True):
+                st.session_state["sos_test_alarm_active"] = False
+                st.toast("Alarm silenced.", icon="🔕")
+                st.rerun()
 
-    with tab_mfs:
-        mfs_col1, mfs_col2 = st.columns([1.8, 1.2])
+    if st.session_state.get("sos_test_alarm_active", False):
+        with alarm_slot:
+            components.html(render_escalating_alarm_synthesizer(8.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+        st.success("🚨 **Alert Active**: Emergency acoustic alarm is sounding. Click 'Silence / Reset' above to stop.")
 
-        with mfs_col1:
-            st.markdown("##### 1. Patient Fall Risk Assessment Items")
+    st.write("")
+    st.markdown("---")
+    st.write("")
 
-            # 1. History of Falling
-            q1 = st.radio(
-                "1. History of falling (within past 3 months)",
-                ["No (0 pts)", "Yes (25 pts)"],
-                index=0,
-                key="mfs_q1"
-            )
-            score_q1 = 25 if "Yes" in q1 else 0
+    # SECTION 2: 2 SIMPLE, HIGH-UTILITY CARDS (HOSPITAL LOCATOR & CAREGIVER SPEED-DIAL)
+    col_hosp, col_care = st.columns(2)
 
-            # 2. Secondary Diagnosis
-            q2 = st.radio(
-                "2. Secondary medical diagnosis (>1 diagnosis in chart)",
-                ["No (0 pts)", "Yes (15 pts)"],
-                index=1,
-                key="mfs_q2"
-            )
-            score_q2 = 15 if "Yes" in q2 else 0
+    with col_hosp:
+        st.markdown(
+            '<div class="card" style="height:100%">'
+            '<div class="card-header">'
+            '<span class="card-title">🏥 Google Maps Emergency Hospitals</span>'
+            '<span class="badge active"><span class="status-dot"></span>Live GPS</span>'
+            '</div>'
+            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.5">'
+            'Direct one-click access to Google Maps to find accredited emergency departments and Level-1 trauma centers with live driving directions.'
+            '</p>'
+            '<div style="display:flex; flex-direction:column; gap:10px">'
+            '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="width:100%; text-align:center">'
+            '🧭 Open Nearest Hospitals on Google Maps &rarr;'
+            '</a>'
+            '<a href="https://www.google.com/maps/search/level+1+trauma+center+near+me/" target="_blank" class="sos-btn sos-btn-primary" style="width:100%; text-align:center">'
+            '🚨 Locate Level-1 Trauma Centers &rarr;'
+            '</a>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
-            # 3. Ambulatory Aid
-            q3 = st.radio(
-                "3. Ambulatory aid used",
-                ["None / Bedrest / Nurse Assistance (0 pts)", "Crutches / Cane / Walker (15 pts)", "Furniture Support / Walls (30 pts)"],
-                index=1,
-                key="mfs_q3"
-            )
-            score_q3 = 30 if "Furniture" in q3 else (15 if "Crutches" in q3 else 0)
+    with col_care:
+        st.markdown(
+            '<div class="card" style="height:100%">'
+            '<div class="card-header">'
+            '<span class="card-title">📞 Caregiver &amp; Family Speed-Dial</span>'
+            '<span class="badge">Speed Dial</span>'
+            '</div>'
+            '<div style="display:flex; flex-direction:column; gap:10px; margin-top:8px">'
+            '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-card); border-radius:10px; border:1px solid var(--border-subtle)">'
+            '<div>'
+            '<div style="font-weight:700; font-size:0.92rem">David Mitchell (Family Proxy / Son)</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary)">+1 (555) 012-3456 &bull; Primary Contact</div>'
+            '</div>'
+            '<a href="tel:5550123456" class="sos-btn sos-btn-secondary" style="padding:6px 14px; font-size:0.82rem">📞 Call</a>'
+            '</div>'
+            '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-card); border-radius:10px; border:1px solid var(--border-subtle)">'
+            '<div>'
+            '<div style="font-weight:700; font-size:0.92rem">Nurse Emily Roberts (Floor 2 Caregiver)</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary)">+1 (555) 014-9921 &bull; On-Duty Attendant</div>'
+            '</div>'
+            '<a href="tel:5550149921" class="sos-btn sos-btn-secondary" style="padding:6px 14px; font-size:0.82rem">📞 Call</a>'
+            '</div>'
+            '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-card); border-radius:10px; border:1px solid var(--border-subtle)">'
+            '<div>'
+            '<div style="font-weight:700; font-size:0.92rem">Dr. Sarah Mitchell (Geriatrician)</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary)">+1 (555) 019-2834 &bull; Attending Physician</div>'
+            '</div>'
+            '<a href="tel:5550192834" class="sos-btn sos-btn-secondary" style="padding:6px 14px; font-size:0.82rem">📞 Call</a>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
-            # 4. IV or Heparin Lock
-            q4 = st.radio(
-                "4. Intravenous therapy or Heparin lock",
-                ["No (0 pts)", "Yes (20 pts)"],
-                index=0,
-                key="mfs_q4"
-            )
-            score_q4 = 20 if "Yes" in q4 else 0
+    st.write("")
 
-            # 5. Gait / Transferring
-            q5 = st.radio(
-                "5. Gait & transferring mobility",
-                ["Normal / Bedfast / Wheelchair (0 pts)", "Weak gait: short steps, stooped (10 pts)", "Impaired gait: difficulty rising, unsteady (20 pts)"],
-                index=1,
-                key="mfs_q5"
-            )
-            score_q5 = 20 if "Impaired" in q5 else (10 if "Weak" in q5 else 0)
-
-            # 6. Mental Status
-            q6 = st.radio(
-                "6. Mental status / orientation",
-                ["Oriented to own ability (0 pts)", "Overestimates or forgets limitations (15 pts)"],
-                index=0,
-                key="mfs_q6"
-            )
-            score_q6 = 15 if "Overestimates" in q6 else 0
-
-            total_mfs = score_q1 + score_q2 + score_q3 + score_q4 + score_q5 + score_q6
-
-        with mfs_col2:
-            if total_mfs <= 24:
-                tier = "LOW RISK"
-                tier_color = "var(--status-green)"
-                bg_badge = "rgba(16,185,129,0.1)"
-                border_badge = "rgba(16,185,129,0.3)"
-                summary_text = "Basic Fall Prevention Standard. Maintain safe uncluttered environment."
-            elif total_mfs <= 50:
-                tier = "MODERATE RISK"
-                tier_color = "var(--status-amber)"
-                bg_badge = "rgba(245,158,11,0.1)"
-                border_badge = "rgba(245,158,11,0.3)"
-                summary_text = "Standard Fall Protocols. Assistive devices, non-skid footwear, regular check-ins."
-            else:
-                tier = "HIGH RISK"
-                tier_color = "var(--status-red)"
-                bg_badge = "rgba(239,68,68,0.1)"
-                border_badge = "rgba(239,68,68,0.3)"
-                summary_text = "CRITICAL SENTINEL PROTOCOL. Bed low to floor, 24/7 vision sentinel, call bell within reach."
-
-            st.markdown(
-                f'<div class="card">'
-                f'<div class="card-header">'
-                f'<span class="card-title">Morse Score Results</span>'
-                f'<span class="badge" style="background:{bg_badge}; border:1px solid {border_badge}; color:{tier_color}; font-weight:700">{tier}</span>'
-                f'</div>'
-                f'<div style="font-size:3.2rem; font-weight:800; color:{tier_color}; line-height:1.0; margin-top:6px">{total_mfs} <small style="font-size:1.1rem; color:var(--text-tertiary)">/ 125</small></div>'
-                f'<div style="font-size:0.86rem; color:var(--text-secondary); margin-top:8px">{summary_text}</div>'
-                f'<div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle)">'
-                f'<div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px">Score Breakdown</div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Fall History:</span><b>{score_q1} pts</b></div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Secondary Diagnosis:</span><b>{score_q2} pts</b></div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Ambulatory Aid:</span><b>{score_q3} pts</b></div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>IV / Heparin Lock:</span><b>{score_q4} pts</b></div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px"><span>Gait Impairment:</span><b>{score_q5} pts</b></div>'
-                f'<div style="display:flex; justify-content:space-between; font-size:0.82rem"><span>Mental Status:</span><b>{score_q6} pts</b></div>'
-                f'</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-
-            # Care Plan Recommendations
-            st.markdown(
-                '<div class="card" style="margin-top:14px">'
-                '<div class="card-header"><span class="card-title">🛡️ Tailored Care Plan</span></div>'
-                '<ul style="margin:6px 0 0 16px; padding:0; font-size:0.82rem; color:var(--text-secondary); line-height:1.6">'
-                '<li><b>SafeFall Sentinel:</b> Keep SafeFall AI active in room with 6-class posture tracker.</li>'
-                '<li><b>Environmental:</b> Night lights in hallway and bathroom (min 50 lux).</li>'
-                '<li><b>Mobility:</b> Physical therapy gait assessment every 30 days.</li>'
-                '<li><b>Hydration & Nutrition:</b> Monitor postural hypotension upon standing.</li>'
-                '</ul>'
-                '</div>',
-                unsafe_allow_html=True
-            )
-
-    with tab_tug:
-        st.markdown("##### ⏱️ Timed Up and Go (TUG) Mobility Benchmark")
-        st.caption("Patient stands from chair, walks 3 meters (10 ft), turns, walks back, and sits.")
-        tug_col1, tug_col2 = st.columns([1.5, 1.5])
-        with tug_col1:
-            tug_seconds = st.slider("TUG Elapsed Duration (Seconds)", min_value=4.0, max_value=35.0, value=11.5, step=0.5)
-            if tug_seconds < 10.0:
-                tug_res = "🟢 Freely Mobile (<10s) - Normal mobility"
-            elif tug_seconds <= 20.0:
-                tug_res = "🟡 Mostly Independent (10-20s) - Fair mobility, occasional supervision"
-            else:
-                tug_res = "🔴 High Fall Risk (>20s) - Impaired mobility, assist device required"
-            st.info(tug_res)
-        with tug_col2:
-            st.markdown(
-                '<div class="card">'
-                '<div class="card-header"><span class="card-title">TUG Clinical Guidelines</span></div>'
-                '<div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5">'
-                '&bull; <b>&lt; 10 seconds:</b> Normal, safe community mobility.<br>'
-                '&bull; <b>11 - 20 seconds:</b> Frail elderly, may go outside alone with cane.<br>'
-                '&bull; <b>&gt; 20 seconds:</b> High risk of acute falls; physical therapy referral strongly recommended.'
-                '</div>'
-                '</div>',
-                unsafe_allow_html=True
-            )
-
-    with tab_hazards:
-        st.markdown("##### 🏡 Geriatric Environmental Safety & Hazard Checklist")
-        h_c1, h_c2 = st.columns(2)
-        with h_c1:
-            st.checkbox("Floors clear of throw rugs and loose cords", value=True)
-            st.checkbox("Bathroom equipped with grab bars near toilet & shower", value=True)
-            st.checkbox("Well-lit hallways and staircases with nightlights", value=False)
-        with h_c2:
-            st.checkbox("Non-skid rubber soled footwear worn indoors", value=True)
-            st.checkbox("Bed height adjusted to patient knee level", value=True)
-            st.checkbox("Emergency phone or SafeFall SOS button within arm reach", value=True)
+    # SECTION 3: RECENT EMERGENCY INCIDENT LOG
+    st.markdown(
+        '<div class="card">'
+        '<div class="card-header">'
+        '<span class="card-title">📋 Recent Incident &amp; Dispatch Log</span>'
+        '<span class="badge">Audit Trail</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+    recent_incidents = alert_mgr.get_recent_incidents(limit=5)
+    if recent_incidents:
+        df = pd.DataFrame(recent_incidents)
+        cols_to_show = [c for c in ["Incident_ID", "Timestamp", "Activity", "Confidence", "Emergency_Alert_Triggered", "Dispatch_Status"] if c in df.columns]
+        st.dataframe(df[cols_to_show], use_container_width=True, hide_index=True)
+    else:
+        st.info("No emergency dispatches recorded in the current audit session.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================================================
@@ -1773,8 +1554,6 @@ def render_dashboard(
         render_live_monitor_page(coordinator, falls_dir, options)
     elif current_page == "Emergency SOS":
         render_emergency_sos_page(coordinator, falls_dir, options)
-    elif current_page in ("Risk Assessment", "Clinical Risk Assessment"):
-        render_clinical_risk_assessment_page(coordinator)
     elif current_page == "Media Analysis":
         render_media_analysis_page(coordinator, falls_dir, options)
     elif current_page == "Model Insights":

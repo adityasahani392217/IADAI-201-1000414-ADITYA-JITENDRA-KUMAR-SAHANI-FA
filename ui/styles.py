@@ -694,6 +694,71 @@ background: #F9FAFB;
 border-color: #9CA3AF;
 }}
 
+.sos-circle-wrapper {{
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+padding: 24px 16px;
+margin: 6px auto;
+text-align: center;
+}}
+
+.sos-circle-btn {{
+width: 170px;
+height: 170px;
+border-radius: 50% !important;
+background: radial-gradient(circle at 35% 35%, #EF4444 0%, #DC2626 45%, #991B1B 100%) !important;
+border: 4px solid #FCA5A5 !important;
+color: #FFFFFF !important;
+display: flex !important;
+flex-direction: column !important;
+align-items: center !important;
+justify-content: center !important;
+text-decoration: none !important;
+box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6), 0 10px 30px rgba(185, 28, 28, 0.45) !important;
+transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+cursor: pointer !important;
+animation: sos-pulse-glow 2.5s infinite !important;
+}}
+
+.sos-circle-btn:hover {{
+transform: scale(1.06) !important;
+box-shadow: 0 0 0 16px rgba(239, 68, 68, 0.25), 0 16px 40px rgba(185, 28, 28, 0.6) !important;
+border-color: #FFFFFF !important;
+}}
+
+.sos-circle-btn:active {{
+transform: scale(0.96) !important;
+}}
+
+.sos-circle-icon {{
+font-size: 2.4rem;
+line-height: 1;
+margin-bottom: 4px;
+}}
+
+.sos-circle-title {{
+font-size: 1.55rem;
+font-weight: 900;
+letter-spacing: 0.08em;
+line-height: 1;
+}}
+
+.sos-circle-sub {{
+font-size: 0.72rem;
+font-weight: 700;
+letter-spacing: 0.05em;
+opacity: 0.92;
+margin-top: 3px;
+}}
+
+@keyframes sos-pulse-glow {{
+0% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6), 0 8px 24px rgba(185, 28, 28, 0.35); }}
+70% {{ box-shadow: 0 0 0 20px rgba(239, 68, 68, 0), 0 8px 24px rgba(185, 28, 28, 0.35); }}
+100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 8px 24px rgba(185, 28, 28, 0.35); }}
+}}
+
 .hospital-card {{
 background: var(--bg-surface);
 border: 1px solid var(--border-subtle);

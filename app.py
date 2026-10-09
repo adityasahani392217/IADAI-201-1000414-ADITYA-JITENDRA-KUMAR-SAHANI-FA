@@ -132,9 +132,8 @@ def main() -> None:
         nav_options = [
             "📊 Overview",
             "📹 Live Monitor",
-            "🚨 Emergency SOS",
-            "🩺 Risk Assessment",
             "🔬 Media Analysis",
+            "🚨 Emergency SOS",
             "📈 Model Insights",
             "🗃️ Dataset",
             "🕒 History",

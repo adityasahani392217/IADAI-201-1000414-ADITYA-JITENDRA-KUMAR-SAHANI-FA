@@ -232,7 +232,7 @@ class SafeFallPipelineCoordinator:
         self,
         frame_bgr: np.ndarray,
         tracker: SubjectVisualTracker,
-        img_size: int = 256
+        img_size: int = 224
     ) -> Optional[Dict[str, Any]]:
         """Run YOLOv8 pose detector with inference_mode and class filtering for maximum FPS."""
         with self.inference_lock, torch.inference_mode():
@@ -240,10 +240,10 @@ class SafeFallPipelineCoordinator:
                 frame_bgr,
                 verbose=False,
                 conf=0.15,
-                imgsz=min(int(img_size), 256),
+                imgsz=min(int(img_size), 224),
                 device=self.yolo_device,
                 classes=[0],
-                max_det=2
+                max_det=1
             )[0]
         return tracker.update(yolo_results, frame_bgr.shape)
 
@@ -800,9 +800,9 @@ class LiveStreamWorker(VideoProcessorBase):
         img = frame.to_ndarray(format="bgr24")
         try:
             h, w = img.shape[:2]
-            if w > 640:
-                scale = 640.0 / w
-                img = cv2.resize(img, (640, int(h * scale)), interpolation=cv2.INTER_LINEAR)
+            if w > 480:
+                scale = 480.0 / w
+                img = cv2.resize(img, (480, int(h * scale)), interpolation=cv2.INTER_LINEAR)
             img = self.process_frame(img)
         except Exception as e:
             self._set_telemetry(error=str(e)[:140])

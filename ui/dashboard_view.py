@@ -46,7 +46,6 @@ from ui.components import (
     render_fall_alert_card,
     render_horizontal_probability_indicators,
     render_hospital_locator_cards,
-    render_client_sentinel_webcam_html,
     render_metric_kpi,
 
     render_pipeline_breadcrumb,
@@ -380,67 +379,50 @@ def render_live_monitor_page(
                 st.session_state["cam_stream_id"] += 1
                 st.rerun()
 
-        # Mode Selector: Instant HTML5 Camera first (100% reliable, zero timeouts, zero CPU throttle)
-        cam_mode = st.radio(
-            "Camera Feed Mode",
-            [
-                "📸 Instant HTML5 Camera (Zero Throttle / 100% Reliable)",
-                "⚡ Client-Side WebCam Sentinel (Live Viewfinder & Zero Server CPU)",
-                "📹 Continuous WebRTC Stream (30 FPS)"
-            ],
-            horizontal=True,
-            key="cam_feed_mode_selector"
-        )
-
-        # Inline Troubleshooting helper
-        st.markdown(
-            '<div style="background:rgba(94,139,122,0.06); border-left:4px solid #5E8B7A; border-radius:6px; padding:8px 12px; margin-bottom:12px; font-size:0.78rem; color:var(--text-secondary)">'
-            '⚡ <b>Client-Side Processing Active:</b> Real-time video rendering, audio sirens, speech alerts, and auto-calling run directly on your device. '
-            'Online AI detection processes postures instantly with zero server lag!'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        webrtc_context = None
-        cam_picture = None
-
-        if "Client-Side" in cam_mode:
-            components.html(render_client_sentinel_webcam_html(), height=390)
-            st.markdown(
-                '<div style="font-size:0.80rem; color:var(--text-secondary); margin-bottom:6px">'
-                'Live viewfinder is running 100% on your device GPU. Capture snapshot below for <b>Online AI Posture &amp; Fall Detection</b>:'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            cam_picture = st.camera_input("Audit Posture with Online AI", key=f"cs_photo_cam_{st.session_state['cam_stream_id']}")
-        elif "Continuous" in cam_mode:
-            webrtc_context = webrtc_streamer(
-                key=f"safefall-live-{st.session_state['cam_stream_id']}",
-                mode=WebRtcMode.SENDRECV,
-                rtc_configuration=WEBRTC_ICE_SERVERS,
-                media_stream_constraints={
-                    "video": {
-                        "width": {"ideal": 480, "max": 640},
-                        "height": {"ideal": 360, "max": 480},
-                        "frameRate": {"ideal": 24, "max": 30}
-                    },
-                    "audio": False
+        # Direct continuous live stream (high performance, 30 FPS, optimized low latency)
+        webrtc_context = webrtc_streamer(
+            key=f"safefall-live-{st.session_state['cam_stream_id']}",
+            mode=WebRtcMode.SENDRECV,
+            rtc_configuration=WEBRTC_ICE_SERVERS,
+            media_stream_constraints={
+                "video": {
+                    "width": {"ideal": 480, "max": 640},
+                    "height": {"ideal": 360, "max": 480},
+                    "frameRate": {"ideal": 30, "max": 30}
                 },
-                video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),
-                async_processing=True
-            )
-        else:
-            st.markdown(
-                '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:8px">'
-                'Direct browser camera capture (zero WebRTC driver conflicts). Point camera at subject and click <b>Take Photo</b> to inspect live posture.'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            cam_picture = st.camera_input("Capture Live Posture", key=f"photo_cam_{st.session_state['cam_stream_id']}")
-
+                "audio": False
+            },
+            video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),
+            async_processing=True
+        )
 
         alert_box_slot = st.empty()
         activity_cards_slot = st.empty()
+
+        # Emergency Dispatch Test Simulator
+        st.write("")
+        if st.button("🚨 Simulate Emergency Dispatch & Siren Test", key="btn_sim_dispatch_test", use_container_width=True):
+            alert_mgr = AlertManager(falls_dir)
+            evt = alert_mgr.trigger_fall_alert(
+                fall_confidence=0.98,
+                patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
+                room_name="Active Room 01",
+                sensor_metadata={"simulated": True, "mode": "1-Click Healthcare Sentinel Test"}
+            )
+            st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
+            with alarm_slot:
+                components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
+                components.html(render_sos_countdown_html(15, 2.0), height=140)
+                components.html(
+                    render_simulated_calling_screen_html(
+                        patient_name=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
+                        incident_id=evt.get('incident_id', 'FALL-TEST'),
+                        room_name="Active Room 01",
+                        is_active=True
+                    ),
+                    height=490
+                )
+            st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
 
     with info_col:
         telemetry_slot = st.empty()
@@ -453,131 +435,7 @@ def render_live_monitor_page(
     alarm_slot = st.empty()
     events_slot = st.empty()
 
-    if cam_picture is not None:
-        bytes_data = cam_picture.getvalue()
-        img_arr = np.frombuffer(bytes_data, np.uint8)
-        frame_bgr = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
-        if frame_bgr is not None:
-            snap_options = dict(options)
-            report = coordinator.analyze_single_image(frame_bgr, snap_options)
-            if report is not None:
-                with cam_col:
-                    st.image(
-                        report["preview"][:, :, ::-1],
-                        caption=f"Analyzed Posture: {report['label']} ({report['confidence']:.1%})",
-                        use_container_width=True
-                    )
-
-                is_fall = report["label"] == "FALL"
-                probs = report["probs"]
-                fall_idx = ACTIVITY_CLASSES.index("FALL")
-                fall_p = float(probs[fall_idx]) if len(probs) > fall_idx else 0.0
-
-                if is_fall:
-                    state_color = "var(--status-red)"
-                    alert_box_slot.markdown(
-                        render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=1.0),
-                        unsafe_allow_html=True
-                    )
-                    if options.get("alarm_enabled", True) and time.time() >= st.session_state.get("silence_alarm_until", 0.0):
-                        with alarm_slot:
-                            components.html(render_escalating_alarm_synthesizer(1.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
-                            components.html(render_sos_countdown_html(15, 1.0), height=140)
-
-
-                elif report["label"] == "OFF_BALANCE":
-                    state_color = "var(--status-amber)"
-                else:
-                    state_color = "var(--status-green)"
-
-                telemetry_slot.markdown(
-                    f'<div class="card">'
-                    f'<div class="card-header">'
-                    f'<span class="card-title">Live Posture</span>'
-                    f'<span class="badge active"><span class="status-dot"></span>{report["engine"]}</span>'
-                    f'</div>'
-                    f'<div style="font-size:2.2rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
-                    f'{report["label"].replace("_", " ").title()}'
-                    f'</div>'
-                    f'<div style="font-size:0.90rem; color:var(--text-secondary); margin-top:4px">'
-                    f'Confidence <b>{report["confidence"]:.1%}</b> &bull; HTML5 Snapshot'
-                    f'</div>'
-                    f'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-                    f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{report["confidence"]:.0%}</div></div>'
-                    f'<div class="stat-tile"><div class="l">Engine</div><div class="v">YOLOv8 Pose</div></div>'
-                    f'<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">Yes</div></div>'
-                    f'<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:{"var(--status-red)" if is_fall else "var(--status-green)"}">{fall_p:.0%}</div></div>'
-                    f'</div>'
-                    f'<div style="margin-top:14px">'
-                    f'<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
-                    f'{render_sparkline_svg([fall_p] * 5, stroke_color="#E53E3E" if is_fall else "#5E8B7A")}'
-                    f'</div>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-                bars_slot.markdown(
-                    f'<div class="card">'
-                    f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-                    f'{render_horizontal_probability_indicators(probs, highlight_fall=is_fall)}'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-                activity_cards_slot.markdown(
-                    render_activity_cards_html(probs, active_label=report["label"], animate=False),
-                    unsafe_allow_html=True
-                )
-
-                # Clinical Posture & Ergonomics Advisor
-                advice_map = {
-                    "SITTING": "💡 <b>Ergonomic Posture Advisor:</b> Spine is aligned. Ensure feet remain flat on the floor. Take a 2-minute standing stretch every 40 minutes.",
-                    "STANDING": "💡 <b>Posture Advisor:</b> Upright bilateral stance confirmed. Keep weight centered and knees unlocked to minimize fatigue.",
-                    "WALKING": "💡 <b>Gait & Mobility Advisor:</b> Dynamic gait motion detected. Ensure walkways remain well-lit and clear of throw rugs.",
-                    "OFF_BALANCE": "⚠️ <b>Clinical Alert (Off Balance):</b> Postural instability or lateral tilt detected. Use wall grab bars or assistive cane immediately.",
-                    "FALL": "🚨 <b>EMERGENCY SENTINEL ALERT:</b> Acute fall event! Do not attempt to stand abruptly. Check vital signs and consciousness. Emergency contacts notified.",
-                    "NORMAL_ACTIVITY": "💡 <b>Clinical Advisor:</b> Nominal domestic movement detected. Maintain steady, deliberate motions."
-                }
-                curr_advice = advice_map.get(report["label"], "💡 Posture monitored nominal.")
-                with cam_col:
-                    st.markdown(
-                        f'<div style="background:rgba(94,139,122,0.08); border-left:4px solid {"var(--status-red)" if is_fall else "var(--status-amber)" if report["label"] == "OFF_BALANCE" else "var(--accent)"}; border-radius:6px; padding:10px 14px; margin-top:12px; font-size:0.82rem; color:var(--text-secondary)">'
-                        f'{curr_advice}'
-                        f'</div>',
-                        unsafe_allow_html=True
-                    )
-            else:
-                with cam_col:
-                    st.success("✅ **Normal Activity (Room Vacant / All Clear)**: No postural anomalies detected.")
-
-        # Emergency Dispatch Test Simulator
-        with cam_col:
-            st.write("")
-            if st.button("🚨 Simulate Emergency Dispatch & Siren Test", key="btn_sim_dispatch_test", use_container_width=True):
-                alert_mgr = AlertManager(falls_dir)
-                evt = alert_mgr.trigger_fall_alert(
-                    fall_confidence=0.98,
-                    patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
-                    room_name="Active Room 01",
-                    sensor_metadata={"simulated": True, "mode": "1-Click Healthcare Sentinel Test"}
-                )
-                st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
-                with alarm_slot:
-                    components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
-                    components.html(render_sos_countdown_html(15, 2.0), height=140)
-                    components.html(
-                        render_simulated_calling_screen_html(
-                            patient_name=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
-                            incident_id=evt.get('incident_id', 'FALL-TEST'),
-                            room_name="Active Room 01",
-                            is_active=True
-                        ),
-                        height=490
-                    )
-
-
-                st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
-
-
-    elif webrtc_context is not None and webrtc_context.state.playing:
+    if webrtc_context is not None and webrtc_context.state.playing:
         fall_history: deque = deque(maxlen=60)
         alarm_playing = False
         stream_start_time = time.time()
@@ -719,8 +577,8 @@ def render_live_monitor_page(
                     unsafe_allow_html=True
                 )
 
-            # Sleep 0.08s (12.5 Hz refresh) for snappy zero-latency telemetry updates
-            time.sleep(0.08)
+            # Sleep 0.05s (20 Hz refresh) for snappy zero-latency telemetry updates
+            time.sleep(0.05)
 
 
         alarm_slot.empty()

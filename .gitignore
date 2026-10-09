@@ -44,3 +44,9 @@ outputs/falls/*.png
 Thumbs.db
 desktop.ini
 *.log
+
+# Legacy code and duplicate root binaries
+archive_legacy/
+/pose_landmarker.task
+outputs/fall_events.csv
+

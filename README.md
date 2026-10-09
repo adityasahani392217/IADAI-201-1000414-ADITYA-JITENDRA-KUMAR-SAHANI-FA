@@ -95,10 +95,10 @@ Nominal Posture                     FALL DETECTED
 .
 ├── app.py                      # Main entrypoint and UI orchestration
 ├── yolov8n-pose.pt             # YOLOv8 nano pose model weights
-├── pose_landmarker.task        # MediaPipe pose model bundle
 ├── requirements.txt            # Python dependencies
 ├── packages.txt                # Linux OS package dependencies
 ├── run_app.bat                 # 1-click Windows launch script
+├── push_to_github.bat          # 1-click GitHub synchronization script
 ├── core/                       # Core analytical and machine learning modules
 │   ├── security.py             # Salted PBKDF2 authentication vault
 │   ├── kinematics.py           # Biomechanical angle and posture heuristics
@@ -109,11 +109,17 @@ Nominal Posture                     FALL DETECTED
 │   ├── styles.py               # Glassmorphic CSS, themes, and animations
 │   ├── components.py           # SVG emblems, cards, charts, and siren
 │   ├── auth_view.py            # Login, registration, and guest cards
-│   └── dashboard_view.py       # Live monitor, photo, and video tabs
+│   └── dashboard_view.py       # Live monitor, photo, video, SOS, overview views
+├── model/                      # Trained AI models & detectors
+│   ├── safefall_nn_model.pth   # PyTorch BiLSTM neural classifier
+│   ├── feature_scaler.joblib   # Robust feature standardizer
+│   └── pose_detector.py        # Pose estimation and feature extraction
 ├── outputs/                    # Output artifacts
 │   ├── users.json              # Salted user credentials
-│   └── falls/                  # Incident snapshots & fall_events.csv
-└── archive_legacy/             # Archived legacy scripts and backups
+│   └── falls/                  # Incident snapshots directory
+└── tests/                      # Automated test suites
+    ├── test_all_6_classes.py   # 6-class activity verification
+    └── test_sos_alarm.py       # Emergency SOS and siren verification
 ```
 
 ---
@@ -122,8 +128,8 @@ Nominal Posture                     FALL DETECTED
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/SafeFall-AI.git
-cd SafeFall-AI
+git clone https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA.git
+cd "ML & DL FA 2"
 ```
 
 ### 2. Set Up Virtual Environment

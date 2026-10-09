@@ -153,7 +153,7 @@ def main() -> None:
             f'<div style="font-size:0.72rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px">System Telemetry</div>'
             f'<div style="display:flex; flex-direction:column; gap:6px">'
             f'<span class="badge" style="width:100%; justify-content:flex-start"><span class="status-dot"></span>Device: {str(coordinator.device).upper()}</span>'
-            f'<span class="badge" style="width:100%; justify-content:flex-start">{"BiLSTM Neural Model" if coordinator.is_trained_4class else "Rule Kinematics Engine"}</span>'
+            f'<span class="badge" style="width:100%; justify-content:flex-start">{"DeepNet + RF Ensemble (FA-2)" if getattr(coordinator, "is_trained_ensemble", False) else ("BiLSTM Neural Model" if coordinator.is_trained_4class else "Rule Kinematics Engine")}</span>'
             f'<span class="badge" style="width:100%; justify-content:flex-start">YOLOv8 Pose &bull; 30 FPS</span>'
             f'</div>'
             f'</div>',

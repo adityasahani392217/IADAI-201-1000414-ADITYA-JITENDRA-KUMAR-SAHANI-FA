@@ -30,13 +30,23 @@ from core.kinematics import (
     SEQUENCE_LENGTH,
     SEQUENCE_STRIDE,
     KinematicPostureEngine,
-    extract_normalized_features
+    extract_normalized_features,
+    extract_142_features_from_coco
 )
 from core.temporal_filter import (
     TemporalDecisionFilter,
     aggregate_detection_intervals,
     resolve_activity_label
 )
+
+MODEL_TO_CANONICAL: Dict[str, str] = {
+    "Fall Detected": "FALL",
+    "Off Balance": "OFF_BALANCE",
+    "Normal Activity": "NORMAL_ACTIVITY",
+    "Sitting": "SITTING",
+    "Standing": "STANDING",
+    "Walking": "WALKING"
+}
 
 try:
     import av
@@ -185,7 +195,23 @@ class SafeFallPipelineCoordinator:
                 self.pose_detector.predict(dummy, verbose=False, imgsz=192, device=self.yolo_device, classes=[0], max_det=1)
         except Exception:
             pass
-        self.neural_model, self.is_trained_4class, self.engine_status = self._init_neural_classifier()
+
+        # Primary Ensemble Classifier: SafeFallClassifier (DeepNet + Random Forest + Scaler + Heuristics)
+        try:
+            from model.fall_classifier import SafeFallClassifier
+            self.classifier = SafeFallClassifier(model_dir=str(self.root_dir / "model"))
+            self.is_trained_ensemble = bool(
+                self.classifier.nn_model is not None or self.classifier.rf_model is not None
+            )
+        except Exception:
+            self.classifier = None
+            self.is_trained_ensemble = False
+
+        self.neural_model, self.is_trained_4class, legacy_status = self._init_neural_classifier()
+        if self.is_trained_ensemble:
+            self.engine_status = "Trained DeepNet + Random Forest Ensemble (FA-2)"
+        else:
+            self.engine_status = legacy_status
 
 
     def _locate_pose_model(self) -> str:
@@ -225,7 +251,9 @@ class SafeFallPipelineCoordinator:
         return None, False, "Rule-based kinematic pose engine"
 
     def uses_neural_model(self, force_legacy: bool = False) -> bool:
-        """Check whether neural model inference is active."""
+        """Check whether neural model / ensemble classifier inference is active."""
+        if self.is_trained_ensemble:
+            return True
         return self.neural_model is not None and (self.is_trained_4class or force_legacy)
 
     def extract_subject_pose(
@@ -247,6 +275,30 @@ class SafeFallPipelineCoordinator:
             )[0]
         return tracker.update(yolo_results, frame_bgr.shape)
 
+
+    def infer_classifier_probabilities(
+        self,
+        keypoints: np.ndarray,
+        confidences: np.ndarray,
+        bbox: np.ndarray,
+        img_shape: Tuple[int, int]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """Inference using SafeFallClassifier ensemble with 142 features and clinical sanity overrides."""
+        vec142, metrics = extract_142_features_from_coco(keypoints, confidences, bbox, img_shape)
+        if self.classifier is not None:
+            with self.inference_lock:
+                pred_res = self.classifier.predict(vec142, heuristic_metrics=metrics)
+            probs_arr = np.zeros(len(ACTIVITY_CLASSES), dtype=np.float32)
+            prob_dict = pred_res.get("probabilities", {})
+            for raw_name, prob_val in prob_dict.items():
+                canon = MODEL_TO_CANONICAL.get(raw_name)
+                if canon and canon in ACTIVITY_CLASSES:
+                    probs_arr[ACTIVITY_CLASSES.index(canon)] = float(prob_val)
+            total = float(probs_arr.sum())
+            if total > 0:
+                probs_arr /= total
+            return probs_arr, pred_res
+        return np.ones(len(ACTIVITY_CLASSES), dtype=np.float32) / len(ACTIVITY_CLASSES), {}
 
     def infer_neural_probabilities(self, sequence_batch: np.ndarray) -> np.ndarray:
         """Inference (N, 30, 51) sequence tensor -> (N, 4) probability array."""
@@ -309,7 +361,18 @@ class SafeFallPipelineCoordinator:
         )
 
         use_ai = options.get("use_model", False) and self.uses_neural_model()
-        if use_ai:
+        if use_ai and self.is_trained_ensemble:
+            ai_probs, pred_res = self.infer_classifier_probabilities(
+                subject["keypoints"],
+                subject["confidences"],
+                subject["bbox"],
+                frame_bgr.shape[:2]
+            )
+            if rule_probs is not None:
+                probs = (0.70 * ai_probs) + (0.30 * rule_probs)
+            else:
+                probs = ai_probs
+        elif use_ai and self.neural_model is not None:
             repeated_seq = np.repeat(subject["features"][None], SEQUENCE_LENGTH, axis=0)[None]
             probs = self.infer_neural_probabilities(repeated_seq)[0]
         elif rule_probs is not None:
@@ -342,7 +405,10 @@ class SafeFallPipelineCoordinator:
             status_label=label
         )
 
-        engine_name = "Trained 4-class BiLSTM" if use_ai else "Rule-based kinematic engine"
+        if use_ai:
+            engine_name = "Trained DeepNet + Random Forest Ensemble" if self.is_trained_ensemble else "Trained 4-class BiLSTM"
+        else:
+            engine_name = "Rule-based kinematic engine"
 
         return {
             "label": label,
@@ -434,10 +500,31 @@ class SafeFallPipelineCoordinator:
         use_ai = options.get("use_model", False) and self.uses_neural_model()
 
         if use_ai:
-            padded = feats_arr if frame_idx >= SEQUENCE_LENGTH else np.concatenate(
-                [feats_arr, np.repeat(feats_arr[-1:], SEQUENCE_LENGTH - frame_idx, axis=0)]
-            )
-            ai_probs = self.infer_neural_probabilities([padded[s:s + SEQUENCE_LENGTH] for s in starts])
+            if self.is_trained_ensemble:
+                ai_probs_list = []
+                for s in starts:
+                    e = min(s + SEQUENCE_LENGTH, frame_idx)
+                    mid_idx = (s + e) // 2
+                    kp_win = keypoint_history[mid_idx]
+                    box_win = box_history[mid_idx]
+                    if kp_win is None:
+                        for idx_scan in range(s, e):
+                            if keypoint_history[idx_scan] is not None:
+                                kp_win = keypoint_history[idx_scan]
+                                box_win = box_history[idx_scan]
+                                break
+                    if kp_win is not None and box_win is not None:
+                        cf_dummy = np.ones(17, dtype=np.float32) * 0.90
+                        p_win, _ = self.infer_classifier_probabilities(kp_win, cf_dummy, box_win, (480, 640))
+                        ai_probs_list.append(p_win)
+                    else:
+                        ai_probs_list.append(np.ones(len(ACTIVITY_CLASSES), dtype=np.float32) / len(ACTIVITY_CLASSES))
+                ai_probs = np.asarray(ai_probs_list)
+            else:
+                padded = feats_arr if frame_idx >= SEQUENCE_LENGTH else np.concatenate(
+                    [feats_arr, np.repeat(feats_arr[-1:], SEQUENCE_LENGTH - frame_idx, axis=0)]
+                )
+                ai_probs = self.infer_neural_probabilities([padded[s:s + SEQUENCE_LENGTH] for s in starts])
 
         window_rows: List[np.ndarray] = []
         window_centers: List[int] = []
@@ -491,7 +578,10 @@ class SafeFallPipelineCoordinator:
         except Exception:
             preview_frame = None
 
-        engine_name = "Trained 4-class BiLSTM" if use_ai else "Rule-based kinematic engine"
+        if use_ai:
+            engine_name = "Trained DeepNet + Random Forest Ensemble" if self.is_trained_ensemble else "Trained 4-class BiLSTM"
+        else:
+            engine_name = "Rule-based kinematic engine"
 
         return {
             "label": summary["verdict"],
@@ -754,7 +844,15 @@ class LiveStreamWorker(VideoProcessorBase):
                 )
 
                 if use_ai:
-                    if self._push_features(subject["features"], curr_time) and len(self.feature_buffer) == SEQUENCE_LENGTH:
+                    if self.coordinator.is_trained_ensemble:
+                        ai_probs, _ = self.coordinator.infer_classifier_probabilities(
+                            subject["keypoints"],
+                            subject["confidences"],
+                            subject["bbox"],
+                            frame_bgr.shape[:2]
+                        )
+                        frame_probabilities = (0.70 * ai_probs) + (0.30 * (kin_probs if kin_probs is not None else ai_probs))
+                    elif self._push_features(subject["features"], curr_time) and len(self.feature_buffer) == SEQUENCE_LENGTH:
                         batch = np.asarray(self.feature_buffer, dtype=np.float32)[None]
                         ai_probs = self.coordinator.infer_neural_probabilities(batch)[0]
                         frame_probabilities = (0.60 * ai_probs) + (0.40 * (kin_probs if kin_probs is not None else ai_probs))
@@ -817,7 +915,7 @@ class LiveStreamWorker(VideoProcessorBase):
             curr_label,
             curr_conf,
             is_fall,
-            "AI" if use_ai else "Rules"
+            "Ensemble AI" if use_ai else "Rules"
         )
 
         if is_fall:
@@ -844,7 +942,7 @@ class LiveStreamWorker(VideoProcessorBase):
             fall_duration=round(fall_duration, 1),
             events=events_list,
             error="",
-            engine="AI" if use_ai else "Rules"
+            engine="Ensemble AI" if use_ai else "Rules"
         )
 
         return frame_bgr

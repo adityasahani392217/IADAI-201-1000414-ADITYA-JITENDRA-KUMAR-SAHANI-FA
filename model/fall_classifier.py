@@ -218,7 +218,13 @@ class SafeFallClassifier:
             probs_dict[cls_name] = round(float(combined_probs[i]), 4)
             
         if pred_class in probs_dict and probs_dict[pred_class] < confidence:
-            probs_dict[pred_class] = round(confidence, 4)
+            rem_weight = max(0.01, 1.0 - confidence)
+            other_sum = sum(v for k, v in probs_dict.items() if k != pred_class)
+            for k in list(probs_dict.keys()):
+                if k == pred_class:
+                    probs_dict[k] = round(confidence, 4)
+                else:
+                    probs_dict[k] = round((probs_dict[k] / max(other_sum, 1e-5)) * rem_weight, 4)
             
         return {
             "predicted_class": pred_class,

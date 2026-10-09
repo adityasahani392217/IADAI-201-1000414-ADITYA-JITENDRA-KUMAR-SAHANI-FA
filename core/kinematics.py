@@ -145,6 +145,230 @@ def compute_joint_angle_degrees(point_a: np.ndarray, vertex_b: np.ndarray, point
     return float(math.degrees(math.acos(dot_product)))
 
 
+COCO_TO_MP33_INDICES = {
+    0: 0,   # nose -> nose
+    1: 2,   # left_eye -> left_eye
+    2: 5,   # right_eye -> right_eye
+    3: 7,   # left_ear -> left_ear
+    4: 8,   # right_ear -> right_ear
+    5: 11,  # left_shoulder -> left_shoulder
+    6: 12,  # right_shoulder -> right_shoulder
+    7: 13,  # left_elbow -> left_elbow
+    8: 14,  # right_elbow -> right_elbow
+    9: 15,  # left_wrist -> left_wrist
+    10: 16, # right_wrist -> right_wrist
+    11: 23, # left_hip -> left_hip
+    12: 24, # right_hip -> right_hip
+    13: 25, # left_knee -> left_knee
+    14: 26, # right_knee -> right_knee
+    15: 27, # left_ankle -> left_ankle
+    16: 28  # right_ankle -> right_ankle
+}
+
+
+def extract_142_features_from_coco(
+    keypoints: np.ndarray,
+    confidences: np.ndarray,
+    bbox: np.ndarray,
+    img_shape: Tuple[int, int] = (480, 640)
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Extract 142-dimensional feature vector and clinical heuristic metrics
+    from 17 COCO landmarks + bounding box for SafeFallClassifier ensemble inference.
+    """
+    h, w = img_shape[:2]
+    kp = np.asarray(keypoints, dtype=np.float32).reshape(17, 2)
+    cf = np.asarray(confidences, dtype=np.float32).reshape(17)
+
+    # 1. Map 17 COCO keypoints into 33-point MediaPipe topology
+    lm33 = np.zeros((33, 4), dtype=np.float32)
+    for c_idx, mp_idx in COCO_TO_MP33_INDICES.items():
+        lm33[mp_idx] = [kp[c_idx, 0] / max(float(w), 1.0), kp[c_idx, 1] / max(float(h), 1.0), 0.0, cf[c_idx]]
+
+    # Interpolate facial, hand, and foot auxiliary landmarks
+    lm33[1] = lm33[2]
+    lm33[3] = lm33[2]
+    lm33[4] = lm33[5]
+    lm33[6] = lm33[5]
+    lm33[9] = (lm33[0] + lm33[11]) / 2.0
+    lm33[10] = (lm33[0] + lm33[12]) / 2.0
+    for k in (17, 19, 21):
+        lm33[k] = lm33[15]
+    for k in (18, 20, 22):
+        lm33[k] = lm33[16]
+    for k in (29, 31):
+        lm33[k] = lm33[27]
+    for k in (30, 32):
+        lm33[k] = lm33[28]
+
+    raw_flat = lm33.flatten()  # 132 features
+
+    # Extract anatomical points
+    nose = lm33[0]
+    l_sh, r_sh = lm33[11], lm33[12]
+    mid_sh = (l_sh + r_sh) / 2.0
+    l_hip, r_hip = lm33[23], lm33[24]
+    mid_hip = (l_hip + r_hip) / 2.0
+    l_kn, r_kn = lm33[25], lm33[26]
+    l_an, r_an = lm33[27], lm33[28]
+    mid_an = (l_an + r_an) / 2.0
+
+    # 1. Omnidirectional Torso Inclination (Depth 3D + 2D Planar)
+    torso_3d = mid_sh[:3] - mid_hip[:3]
+    norm_3d = float(np.linalg.norm(torso_3d) + 1e-7)
+    cos_tilt_3d = float(np.clip((-torso_3d[1]) / norm_3d, -1.0, 1.0))
+    torso_angle_3d = float(math.degrees(math.acos(cos_tilt_3d)))
+
+    dx_2d = abs(float(mid_sh[0] - mid_hip[0]))
+    dy_2d = abs(float(mid_sh[1] - mid_hip[1])) + 1e-7
+    torso_angle_2d = float(math.degrees(math.atan2(dx_2d, dy_2d)))
+    torso_angle = float(max(torso_angle_2d, torso_angle_3d))
+
+    # 2. Bounding box aspect ratio
+    bx1, by1, bx2, by2 = [float(v) for v in bbox]
+    bbox_w = max(1e-5, (bx2 - bx1) / max(float(w), 1.0))
+    bbox_h = max(1e-5, (by2 - by1) / max(float(h), 1.0))
+    aspect_ratio = float((bx2 - bx1) / max(1.0, (by2 - by1)))
+
+    # 3. Center of gravity elevation (mid-hip Y)
+    cog_y = float(mid_hip[1])
+
+    # 4. Head to hip vertical difference
+    head_hip_dy = float(nose[1] - mid_hip[1])
+
+    # 5. Knee and hip flexion angles
+    def _joint_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
+        ba = a[:2] - b[:2]
+        bc = c[:2] - b[:2]
+        cos_val = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-7)
+        return float(math.degrees(math.acos(max(-1.0, min(1.0, float(cos_val))))))
+
+    l_knee_ang = _joint_angle(l_hip, l_kn, l_an)
+    r_knee_ang = _joint_angle(r_hip, r_kn, r_an)
+    avg_knee_ang = float((l_knee_ang + r_knee_ang) / 2.0)
+    min_knee_ang = float(min(l_knee_ang, r_knee_ang))
+    knee_asym = abs(float(l_knee_ang - r_knee_ang))
+
+    l_hip_ang = _joint_angle(l_sh, l_hip, l_kn)
+    r_hip_ang = _joint_angle(r_sh, r_hip, r_kn)
+    avg_hip_ang = float((l_hip_ang + r_hip_ang) / 2.0)
+
+    # 6. Dimensions and gait strides
+    body_height_norm = float(np.linalg.norm(mid_sh[:2] - mid_an[:2]))
+    shoulder_width_norm = float(np.linalg.norm(l_sh[:2] - r_sh[:2]))
+    shoulder_height_ratio = float(shoulder_width_norm / (body_height_norm + 1e-5))
+    ankle_stride = float(np.linalg.norm(l_an[:2] - r_an[:2]))
+    ankle_dy = abs(float(l_an[1] - r_an[1]))
+
+    # 7. Omnidirectional heuristic fall score
+    lat_score = 0.0
+    if torso_angle > 45.0 or aspect_ratio > 0.90:
+        lat_score = min(1.0, max(0.0, (torso_angle - 25.0) / 45.0) * 0.5 + max(0.0, (aspect_ratio - 0.7) / 0.8) * 0.5)
+
+    persp_score = 0.0
+    if (torso_angle_3d > 45.0 or (head_hip_dy >= -0.12 and torso_angle > 35.0)) and cog_y > 0.55:
+        persp_score = min(1.0, (torso_angle_3d / 65.0) * 0.6 + (cog_y / 0.75) * 0.4)
+
+    diag_score = 0.0
+    if torso_angle > 40.0 and aspect_ratio > 0.65 and cog_y > 0.52:
+        diag_score = min(1.0, (torso_angle / 60.0) * 0.6 + (aspect_ratio / 1.1) * 0.4)
+
+    collapse_score = 0.0
+    if cog_y > 0.55 and (avg_knee_ang < 75.0 or avg_hip_ang < 75.0 or (torso_angle > 45.0 and aspect_ratio > 0.55)):
+        collapse_score = min(1.0, 0.60 + (cog_y / 0.75) * 0.25 + (1.0 - min(avg_knee_ang, 90.0) / 90.0) * 0.20)
+
+    is_standing_geometry = (torso_angle < 20.0 and avg_knee_ang > 162.0 and aspect_ratio < 0.45)
+    is_upright_bending = (torso_angle < 45.0 and avg_knee_ang > 155.0 and aspect_ratio < 0.50 and head_hip_dy < -0.13)
+    if is_standing_geometry or is_upright_bending:
+        heuristic_fall_score = 0.05
+    else:
+        heuristic_fall_score = float(max(lat_score, persp_score, diag_score, collapse_score))
+
+    bio_features = np.array([
+        torso_angle,
+        aspect_ratio,
+        cog_y,
+        head_hip_dy,
+        avg_knee_ang,
+        avg_hip_ang,
+        body_height_norm,
+        shoulder_width_norm,
+        shoulder_height_ratio,
+        heuristic_fall_score
+    ], dtype=np.float32)
+
+    vec142 = np.concatenate([raw_flat, bio_features]).astype(np.float32)
+
+    # 8. Dynamic Off-Balancer Kinematic Stability Analysis
+    foot_xs = [l_an[0], r_an[0], lm33[29][0], lm33[30][0], lm33[31][0], lm33[32][0]]
+    foot_ys = [l_an[1], r_an[1], lm33[29][1], lm33[30][1], lm33[31][1], lm33[32][1]]
+    min_bos_x, max_bos_x = min(foot_xs), max(foot_xs)
+    bos_w = max(0.06, max_bos_x - min_bos_x)
+    bos_cx = (min_bos_x + max_bos_x) / 2.0
+    ground_y = max(foot_ys)
+    com_x = 0.55 * mid_hip[0] + 0.45 * mid_sh[0]
+    balance_deviation = abs(com_x - bos_cx)
+    balance_ratio = float(balance_deviation / (0.5 * bos_w + 1e-5))
+    hip_clearance = float(ground_y - mid_hip[1])
+
+    if hip_clearance < 0.12 and aspect_ratio > 1.10:
+        stability_score = max(5.0, hip_clearance * 80.0)
+    else:
+        instability_penalty = max(0.0, (balance_ratio - 0.75) * 45.0) + (ankle_dy * 70.0)
+        stability_score = max(10.0, min(100.0, 100.0 - instability_penalty))
+
+    is_sitting_posture = bool(
+        (avg_knee_ang <= 138.0 or min_knee_ang <= 130.0)
+        and (aspect_ratio < 0.75)
+        and (torso_angle < 60.0)
+        and (cog_y < 0.85)
+    )
+    is_floor_fall = bool(
+        (torso_angle >= 60.0 and aspect_ratio >= 0.75 and cog_y > 0.58)
+        or (torso_angle >= 70.0 and (aspect_ratio >= 0.65 or cog_y > 0.60))
+        or (aspect_ratio >= 0.95 and torso_angle > 45.0 and cog_y > 0.55)
+    )
+    is_controlled_bending = bool(
+        (24.0 <= torso_angle <= 75.0)
+        and (aspect_ratio < 0.90)
+        and (hip_clearance > 0.16)
+        and (stability_score >= 48.0)
+        and (cog_y < 0.68)
+        and (avg_knee_ang >= 142.0 and min_knee_ang >= 132.0)
+    )
+    has_stride = (ankle_stride > 0.13)
+    has_knee_stride = (knee_asym > 18.0 and avg_knee_ang > 125.0)
+    has_foot_lift = (ankle_dy > 0.035 and avg_knee_ang > 125.0)
+    is_walking_gait = bool((torso_angle < 25.0) and not is_sitting_posture and not is_floor_fall and (has_stride or has_knee_stride or has_foot_lift))
+    is_unbalanced = bool((torso_angle >= 20.0) and not is_sitting_posture and not is_floor_fall and (balance_ratio > 1.25 or ankle_dy > 0.08) and (stability_score < 45.0) and (aspect_ratio < 1.10))
+
+    metrics = {
+        "torso_angle_deg": round(torso_angle, 1),
+        "torso_angle_3d_deg": round(torso_angle_3d, 1),
+        "aspect_ratio": round(aspect_ratio, 2),
+        "center_of_gravity_y": round(cog_y, 3),
+        "avg_knee_angle_deg": round(avg_knee_ang, 1),
+        "avg_hip_angle_deg": round(avg_hip_ang, 1),
+        "knee_asymmetry_deg": round(knee_asym, 1),
+        "min_knee_angle_deg": round(min_knee_ang, 1),
+        "ankle_stride": round(ankle_stride, 3),
+        "ankle_dy": round(ankle_dy, 3),
+        "vertical_span": round(bbox_h, 3),
+        "head_hip_dy": round(head_hip_dy, 3),
+        "heuristic_fall_score": round(heuristic_fall_score, 2),
+        "stability_score": round(float(stability_score), 1),
+        "balance_ratio": round(float(balance_ratio), 2),
+        "hip_clearance": round(float(hip_clearance), 3),
+        "bos_width": round(float(bos_w), 3),
+        "is_sitting_posture": is_sitting_posture,
+        "is_floor_fall": is_floor_fall,
+        "is_controlled_bending": is_controlled_bending,
+        "is_walking_gait": is_walking_gait,
+        "is_unbalanced": is_unbalanced
+    }
+    return vec142, metrics
+
+
 class KinematicPostureEngine:
     """
     Real-time biomechanical analysis engine determining posture distribution

@@ -63,13 +63,10 @@ from utils.alert_manager import AlertManager
 
 WEBRTC_ICE_SERVERS = {
     "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-        {"urls": ["stun:stun1.l.google.com:19302"]},
-        {"urls": ["stun:stun2.l.google.com:19302"]},
-        {"urls": ["stun:stun3.l.google.com:19302"]},
-        {"urls": ["stun:stun4.l.google.com:19302"]},
+        {"urls": ["stun:stun.l.google.com:19302"]}
     ]
 }
+
 
 
 # =========================================================
@@ -462,140 +459,139 @@ def render_live_monitor_page(
     alarm_slot = st.empty()
 
     # Clean Fragment-based live status (just like Naman's app, 0% CPU, zero blocking while loop!)
-    @st.fragment(run_every=1)
-    def live_telemetry():
-        if webrtc_context is None or not webrtc_context.state.playing:
+    if webrtc_context is not None and webrtc_context.state.playing:
+        @st.fragment(run_every=1)
+        def live_telemetry():
+            worker: Optional[LiveStreamWorker] = webrtc_context.video_processor
+            if worker is None:
+                return
+
+            worker.config.update({
+                "fall_thr": options["fall_thr"],
+                "need": options["need"],
+                "alpha": options["alpha"],
+                "stride": options["stride"],
+                "enhance": options["enhance"],
+                "gamma": options["gamma"],
+                "imgsz": options["imgsz"],
+                "desk_mode": options["desk_mode"],
+                "force_legacy": options.get("force_legacy", False)
+            })
+
+            snapshot = worker.get_telemetry_snapshot()
+            person_tracked = bool(snapshot.get("person", False))
+            fall_idx = ACTIVITY_CLASSES.index("FALL")
+            probs_arr = snapshot.get("probs", [])
+
+            if not person_tracked:
+                probs_arr = [0.0] * len(ACTIVITY_CLASSES)
+                fall_p = 0.0
+                is_fall = False
+                fall_duration = 0.0
+                curr_label = "NO PERSON DETECTED"
+                conf_display = "--"
+                person_str = "No"
+                state_color = "var(--text-tertiary)"
+                badge_text = snapshot.get("engine") or "AI"
+                status_desc = f'Stand in frame to track posture &bull; {snapshot["fps"]:.0f} FPS'
+                alert_box_slot.empty()
+            else:
+                fall_p = float(probs_arr[fall_idx]) if len(probs_arr) > fall_idx else 0.0
+                is_fall = snapshot["fall"]
+                fall_duration = float(snapshot.get("fall_duration", 0.0))
+                curr_label = snapshot["label"]
+                curr_conf = float(snapshot.get("conf", 0.0))
+                conf_display = f"{curr_conf:.1%}"
+                person_str = "Yes"
+                badge_text = snapshot.get("engine", "AI")
+                status_desc = f'Confidence <b>{curr_conf:.1%}</b> &bull; {snapshot["fps"]:.0f} FPS'
+                state_color = "var(--status-red)" if is_fall else ("var(--status-amber)" if curr_label in ("OFF_BALANCE", "OFF BALANCE") else "var(--status-green)")
+
+                if is_fall:
+                    alert_box_slot.markdown(
+                        render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=fall_duration),
+                        unsafe_allow_html=True
+                    )
+                else:
+                    alert_box_slot.empty()
+
             telemetry_slot.markdown(
-                '<div class="card">'
-                '<div class="card-header">'
-                '<span class="card-title">Live Posture</span>'
-                '<span class="badge" style="background:rgba(100,116,139,0.12); color:var(--text-secondary); border-color:var(--border-color)"><span class="status-dot" style="background:#94A3B8"></span>Standby</span>'
-                '</div>'
-                '<div class="activity-display-label">CURRENT ACTIVITY</div>'
-                '<div class="activity-display-val" style="margin-top:2px; color:var(--text-tertiary)">CAMERA STANDBY</div>'
-                '<div class="activity-display-conf" style="margin-top:2px; color:var(--text-tertiary)">Awaiting video stream &bull; 0.0%</div>'
-                '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-                '<div class="stat-tile"><div class="l">Confidence</div><div class="v">--</div></div>'
-                '<div class="stat-tile"><div class="l">FPS</div><div class="v">0</div></div>'
-                '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">No</div></div>'
-                '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v">0%</div></div>'
-                '</div>'
-                '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview above to connect live camera stream.</div>'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            bars_slot.markdown(
                 f'<div class="card">'
-                f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-                f'{render_horizontal_probability_indicators([0.0] * len(ACTIVITY_CLASSES))}'
+                f'<div class="card-header">'
+                f'<span class="card-title">Live Posture</span>'
+                f'<span class="badge active"><span class="status-dot"></span>{badge_text}</span>'
+                f'</div>'
+                f'<div style="font-size:2.0rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
+                f'{curr_label.replace("_", " ").title()}'
+                f'</div>'
+                f'<div style="font-size:0.90rem; color:var(--text-secondary); margin-top:4px">'
+                f'{status_desc}'
+                f'</div>'
+                f'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
+                f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{conf_display}</div></div>'
+                f'<div class="stat-tile"><div class="l">FPS</div><div class="v">{snapshot["fps"]:.0f}</div></div>'
+                f'<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">{person_str}</div></div>'
+                f'<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:{"var(--status-red)" if fall_p > options["fall_thr"] else "inherit"}">{fall_p:.0%}</div></div>'
+                f'</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
-            activity_cards_slot.markdown(
-                render_activity_cards_html([0.0] * len(ACTIVITY_CLASSES), active_label=None),
+
+            bars_slot.markdown(
+                f'<div class="card">'
+                f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
+                f'{render_horizontal_probability_indicators(probs_arr, highlight_fall=is_fall)}'
+                f'</div>',
                 unsafe_allow_html=True
             )
-            alert_box_slot.empty()
-            alarm_slot.empty()
-            return
 
-        worker: Optional[LiveStreamWorker] = webrtc_context.video_processor
-        if worker is None:
-            return
+            activity_cards_slot.markdown(
+                render_activity_cards_html(probs_arr, curr_label if person_tracked else None, animate=False),
+                unsafe_allow_html=True
+            )
 
-        worker.config.update({
-            "fall_thr": options["fall_thr"],
-            "need": options["need"],
-            "alpha": options["alpha"],
-            "stride": options["stride"],
-            "enhance": options["enhance"],
-            "gamma": options["gamma"],
-            "imgsz": options["imgsz"],
-            "desk_mode": options["desk_mode"],
-            "force_legacy": options.get("force_legacy", False)
-        })
-
-        snapshot = worker.get_telemetry_snapshot()
-        person_tracked = bool(snapshot.get("person", False))
-        fall_idx = ACTIVITY_CLASSES.index("FALL")
-        probs_arr = snapshot.get("probs", [])
-
-        if not person_tracked:
-            probs_arr = [0.0] * len(ACTIVITY_CLASSES)
-            fall_p = 0.0
-            is_fall = False
-            fall_duration = 0.0
-            curr_label = "NO PERSON DETECTED"
-            conf_display = "--"
-            person_str = "No"
-            state_color = "var(--text-tertiary)"
-            badge_text = snapshot.get("engine") or "AI"
-            status_desc = f'Stand in frame to track posture &bull; {snapshot["fps"]:.0f} FPS'
-            alert_box_slot.empty()
-        else:
-            fall_p = float(probs_arr[fall_idx]) if len(probs_arr) > fall_idx else 0.0
-            is_fall = snapshot["fall"]
-            fall_duration = float(snapshot.get("fall_duration", 0.0))
-            curr_label = snapshot["label"]
-            curr_conf = float(snapshot.get("conf", 0.0))
-            conf_display = f"{curr_conf:.1%}"
-            person_str = "Yes"
-            badge_text = snapshot.get("engine", "AI")
-            status_desc = f'Confidence <b>{curr_conf:.1%}</b> &bull; {snapshot["fps"]:.0f} FPS'
-            state_color = "var(--status-red)" if is_fall else ("var(--status-amber)" if curr_label in ("OFF_BALANCE", "OFF BALANCE") else "var(--status-green)")
-
-            if is_fall:
-                alert_box_slot.markdown(
-                    render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=fall_duration),
-                    unsafe_allow_html=True
-                )
+            # Escalating Audio Alarm: if fall persists
+            is_silenced = time.time() < st.session_state.get("silence_alarm_until", 0.0)
+            if is_fall and options.get("alarm_enabled", True) and not is_silenced:
+                with alarm_slot:
+                    components.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True), height=115)
             else:
-                alert_box_slot.empty()
+                alarm_slot.empty()
 
+        live_telemetry()
+    else:
         telemetry_slot.markdown(
-            f'<div class="card">'
-            f'<div class="card-header">'
-            f'<span class="card-title">Live Posture</span>'
-            f'<span class="badge active"><span class="status-dot"></span>{badge_text}</span>'
-            f'</div>'
-            f'<div style="font-size:2.0rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
-            f'{curr_label.replace("_", " ").title()}'
-            f'</div>'
-            f'<div style="font-size:0.90rem; color:var(--text-secondary); margin-top:4px">'
-            f'{status_desc}'
-            f'</div>'
-            f'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-            f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{conf_display}</div></div>'
-            f'<div class="stat-tile"><div class="l">FPS</div><div class="v">{snapshot["fps"]:.0f}</div></div>'
-            f'<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">{person_str}</div></div>'
-            f'<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:{"var(--status-red)" if fall_p > options["fall_thr"] else "inherit"}">{fall_p:.0%}</div></div>'
-            f'</div>'
-            f'</div>',
+            '<div class="card">'
+            '<div class="card-header">'
+            '<span class="card-title">Live Posture</span>'
+            '<span class="badge" style="background:rgba(100,116,139,0.12); color:var(--text-secondary); border-color:var(--border-color)"><span class="status-dot" style="background:#94A3B8"></span>Standby</span>'
+            '</div>'
+            '<div class="activity-display-label">CURRENT ACTIVITY</div>'
+            '<div class="activity-display-val" style="margin-top:2px; color:var(--text-tertiary)">CAMERA STANDBY</div>'
+            '<div class="activity-display-conf" style="margin-top:2px; color:var(--text-tertiary)">Awaiting video stream &bull; 0.0%</div>'
+            '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
+            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">--</div></div>'
+            '<div class="stat-tile"><div class="l">FPS</div><div class="v">0</div></div>'
+            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">No</div></div>'
+            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v">0%</div></div>'
+            '</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview above to connect live camera stream.</div>'
+            '</div>',
             unsafe_allow_html=True
         )
-
         bars_slot.markdown(
             f'<div class="card">'
             f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-            f'{render_horizontal_probability_indicators(probs_arr, highlight_fall=is_fall)}'
+            f'{render_horizontal_probability_indicators([0.0] * len(ACTIVITY_CLASSES))}'
             f'</div>',
             unsafe_allow_html=True
         )
-
         activity_cards_slot.markdown(
-            render_activity_cards_html(probs_arr, curr_label if person_tracked else None, animate=False),
+            render_activity_cards_html([0.0] * len(ACTIVITY_CLASSES), active_label=None),
             unsafe_allow_html=True
         )
-
-        # Escalating Audio Alarm: if fall persists
-        is_silenced = time.time() < st.session_state.get("silence_alarm_until", 0.0)
-        if is_fall and options.get("alarm_enabled", True) and not is_silenced:
-            with alarm_slot:
-                components.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True), height=115)
-        else:
-            alarm_slot.empty()
-
-    live_telemetry()
+        alert_box_slot.empty()
+        alarm_slot.empty()
 
 
 # =========================================================
@@ -1495,9 +1491,7 @@ def render_dashboard(
     )
 
     new_page = mode_to_page.get(selected_mode, "Live Monitor")
-    if new_page != current_page:
-        st.session_state["nav_page"] = new_page
-        st.rerun()
+    st.session_state["nav_page"] = new_page
 
     if new_page == "Live Monitor":
         render_live_monitor_page(coordinator, falls_dir, options)

@@ -80,14 +80,13 @@ def generate_stylesheet(accent_hex: str = "#5E8B7A", accent2_hex: str = "#8EA8C3
 --status-red-bg: rgba(217, 120, 120, 0.10);
 """
 
-    return f"""<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<style>
+    return f"""<style>
 :root {{
 {theme_vars}
 }}
 
 html, body, [class*="css"] {{
-font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 -webkit-font-smoothing: antialiased;
 color: var(--text-primary);
 }}

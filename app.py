@@ -128,54 +128,24 @@ def main() -> None:
             unsafe_allow_html=True
         )
 
-        # Primary Navigation
-        nav_options = [
-            "📹 Live Camera",
-            "📷 Photo",
-            "🎥 Video",
-            "📸 Camera Snapshot",
-            "🚨 Emergency SOS",
-            "📊 Overview",
-            "⚙️ Settings"
-        ]
-
-        page_to_sidebar = {
+        current_page = st.session_state.get("nav_page", "Live Monitor")
+        page_labels = {
             "Live Monitor": "📹 Live Camera",
-            "Photo": "📷 Photo",
-            "Video": "🎥 Video",
+            "Photo": "📷 Photo Analysis",
+            "Video": "🎥 Video Analysis",
             "Snapshot": "📸 Camera Snapshot",
             "Emergency SOS": "🚨 Emergency SOS",
-            "Overview": "📊 Overview",
+            "Overview": "📊 System Overview",
             "Settings": "⚙️ Settings"
         }
-        sidebar_to_page = {
-            "📹 Live Camera": "Live Monitor",
-            "📷 Photo": "Photo",
-            "🎥 Video": "Video",
-            "📸 Camera Snapshot": "Snapshot",
-            "🚨 Emergency SOS": "Emergency SOS",
-            "📊 Overview": "Overview",
-            "⚙️ Settings": "Settings"
-        }
-
-        current_page = st.session_state.get("nav_page", "Live Monitor")
-        current_sidebar_item = page_to_sidebar.get(current_page, "📹 Live Camera")
-        current_index = nav_options.index(current_sidebar_item) if current_sidebar_item in nav_options else 0
-
-        selected_nav = st.radio(
-            "Navigation Menu",
-            nav_options,
-            index=current_index,
-            label_visibility="collapsed",
-            key="sidebar_navigation_radio"
+        active_label = page_labels.get(current_page, "📹 Live Camera")
+        st.markdown(
+            f'<div style="margin: 12px 0 6px 0; padding: 10px 14px; border-radius: 10px; background: rgba(var(--ar), 0.08); border: 1px solid var(--border-accent)">'
+            f'<div style="font-size:0.70rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em">Active Workspace</div>'
+            f'<div style="font-size:0.95rem; font-weight:700; color:var(--text-primary); margin-top:2px">{active_label}</div>'
+            f'</div>',
+            unsafe_allow_html=True
         )
-
-        new_page = sidebar_to_page.get(selected_nav, "Live Monitor")
-        if new_page != current_page:
-            st.session_state["nav_page"] = new_page
-            st.rerun()
-
-        st.write("")
 
         # System Health & Hardware Info Chips
         st.markdown(

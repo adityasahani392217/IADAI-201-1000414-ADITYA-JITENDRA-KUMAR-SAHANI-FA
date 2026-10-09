@@ -286,6 +286,10 @@ class SafeFallPipelineCoordinator:
                 "rate": 0.0,
                 "windows": 1,
                 "preview": preview_img,
+                "keypoints": None,
+                "bbox": None,
+                "torso_angle": 0.0,
+                "aspect_ratio": 1.0,
                 "timeline": None,
                 "times": None,
                 "votes": None,
@@ -317,6 +321,19 @@ class SafeFallPipelineCoordinator:
         conf = float(probs[ACTIVITY_CLASSES.index(label)])
         is_fall = label == "FALL"
 
+        bx1, by1, bx2, by2 = subject["bbox"]
+        ar = float((bx2 - bx1) / max(1.0, (by2 - by1)))
+
+        # Anatomical torso inclination angle from gravitational vertical
+        kp = subject["keypoints"]
+        torso_angle = 0.0
+        sh_mid = (kp[5] + kp[6]) / 2.0
+        hip_mid = (kp[11] + kp[12]) / 2.0
+        dx = abs(float(hip_mid[0] - sh_mid[0]))
+        dy = abs(float(hip_mid[1] - sh_mid[1]))
+        if dy > 0.001:
+            torso_angle = float(np.degrees(np.arctan2(dx, dy)))
+
         preview_img = render_pose_skeleton(
             frame_bgr.copy(),
             subject["keypoints"],
@@ -336,6 +353,10 @@ class SafeFallPipelineCoordinator:
             "rate": 1.0,
             "windows": 1,
             "preview": preview_img,
+            "keypoints": kp,
+            "bbox": subject["bbox"],
+            "torso_angle": torso_angle,
+            "aspect_ratio": ar,
             "timeline": None,
             "times": None,
             "votes": None,

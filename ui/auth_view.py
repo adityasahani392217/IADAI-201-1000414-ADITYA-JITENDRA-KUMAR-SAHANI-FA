@@ -23,17 +23,24 @@ def switch_auth_mode(mode: str) -> None:
 
 def authenticate_as_guest() -> None:
     """Establish unauthenticated guest session."""
+    st.session_state["_signed_out"] = False
     st.session_state["active_user"] = {
         "name": "Clinical Evaluator (Guest)",
         "email": "guest@safefall.local",
         "guest": True
     }
+    st.rerun()
 
 
-def prefill_demo_credentials() -> None:
-    """Auto-fill demo credentials in session state for instant testing."""
-    st.session_state["demo_email"] = "demo@safefall.ai"
-    st.session_state["demo_pass"] = "safefall123"
+def login_as_demo() -> None:
+    """Instant 1-click authenticated demo session."""
+    st.session_state["_signed_out"] = False
+    st.session_state["active_user"] = {
+        "name": "Clinical Evaluator (Demo)",
+        "email": "demo@safefall.ai",
+        "guest": False
+    }
+    st.rerun()
 
 
 def render_authentication_gate(vault: SecureCredentialVault) -> None:
@@ -75,6 +82,7 @@ def render_authentication_gate(vault: SecureCredentialVault) -> None:
                     pw2_input
                 )
                 if success:
+                    st.session_state["_signed_out"] = False
                     st.session_state["active_user"] = profile
                     st.rerun()
                 else:
@@ -106,36 +114,36 @@ def render_authentication_gate(vault: SecureCredentialVault) -> None:
                     pw_input
                 )
                 if success:
+                    st.session_state["_signed_out"] = False
                     st.session_state["active_user"] = profile
                     st.rerun()
                 else:
                     st.error(message)
 
-            col_demo, col_signup = st.columns(2)
+            st.write("")
+            col_demo, col_guest = st.columns(2)
             with col_demo:
                 st.button(
-                    "⚡ Demo Credentials",
+                    "⚡ 1-Click Demo Sign-In",
                     key="btn_autofill_demo",
                     use_container_width=True,
-                    on_click=prefill_demo_credentials,
-                    help="Auto-fill default evaluation credentials (demo@safefall.ai)"
+                    on_click=login_as_demo
                 )
-            with col_signup:
+            with col_guest:
                 st.button(
-                    "Create Account",
-                    key="btn_to_signup",
-                    on_click=switch_auth_mode,
-                    args=("signup",),
-                    use_container_width=True
+                    "👤 Continue as Guest",
+                    key="btn_guest_access",
+                    use_container_width=True,
+                    on_click=authenticate_as_guest
                 )
 
             st.write("")
             st.button(
-                "Continue as Guest (Instant Access)",
-                key="btn_guest_access",
-                use_container_width=True,
-                on_click=authenticate_as_guest,
-                help="Evaluate SafeFall AI immediately without signing in"
+                "➕ Register New Clinical Account",
+                key="btn_to_signup",
+                on_click=switch_auth_mode,
+                args=("signup",),
+                use_container_width=True
             )
 
         st.markdown(

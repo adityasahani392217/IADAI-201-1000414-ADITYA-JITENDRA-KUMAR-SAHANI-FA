@@ -713,6 +713,8 @@ def render_media_analysis_page(
             "🚨 Fall Incident (Image)": sample_dir / "fall_sample_1.jpg",
             "🪑 Sitting Posture (Image)": sample_dir / "sitting_sample_1.jpg",
             "🧍 Standing Posture (Image)": sample_dir / "standing_sample_1.jpg",
+            "⚠️ Off-Balance Posture (Image)": sample_dir / "off_balance_sample_1.jpg",
+            "✅ Normal Activity (Image)": sample_dir / "normal_sample_1.jpg",
             "📹 Elderly Fall Sequence (Video)": sample_dir / "demo_fall_sequence.mp4",
         }
 

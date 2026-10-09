@@ -71,6 +71,13 @@ def initialize_session_defaults() -> None:
         if key not in st.session_state:
             st.session_state[key] = val
 
+    if "active_user" not in st.session_state and not st.session_state.get("_signed_out", False):
+        st.session_state["active_user"] = {
+            "name": "Clinical Evaluator",
+            "email": "demo@safefall.ai",
+            "guest": False
+        }
+
 
 def main() -> None:
     initialize_session_defaults()
@@ -173,6 +180,7 @@ def main() -> None:
 
         st.write("")
         if st.button("Sign Out", key="btn_logout", use_container_width=True):
+            st.session_state["_signed_out"] = True
             st.session_state.pop("active_user", None)
             st.session_state["auth_mode"] = "signin"
             st.rerun()

@@ -1147,10 +1147,13 @@ def render_settings_page(
             help="Simulates an ambient screen fill light to illuminate subject without harsh glare."
         )
 
+        tone_options = ["Warm", "Cool", "White"]
+        cur_tone = st.session_state.get("setting_fill_tone", "Warm")
+        tone_index = tone_options.index(cur_tone) if cur_tone in tone_options else 0
         st.session_state["setting_fill_tone"] = st.radio(
             "Fill Light Color Tone",
-            ["Warm", "Cool", "White"],
-            index=["Warm", "Cool", "White"].index(st.session_state.get("setting_fill_tone", "Warm")),
+            tone_options,
+            index=tone_index,
             horizontal=True,
             disabled=not st.session_state["setting_fill_light"]
         )
@@ -1189,11 +1192,15 @@ def render_settings_page(
             help="Process every Nth frame. Increase if running on resource-constrained hardware."
         )
 
+        imgsz_options = [224, 256, 320, 480, 640]
+        cur_imgsz = int(st.session_state.get("setting_imgsz", 480))
+        if cur_imgsz not in imgsz_options:
+            cur_imgsz = 480
         st.session_state["setting_imgsz"] = st.select_slider(
             "YOLOv8 Pose Frame Resolution",
-            options=[320, 480, 640],
-            value=int(st.session_state.get("setting_imgsz", 480)),
-            help="Frame resolution. 480px provides optimal accuracy-speed tradeoff."
+            options=imgsz_options,
+            value=cur_imgsz,
+            help="Frame resolution. 224/256/320 for ultra-fast low latency; 480/640 for high precision."
         )
 
         st.session_state["setting_desk_mode"] = st.toggle(
@@ -1253,10 +1260,13 @@ def render_settings_page(
         st.markdown("#### Visual Theme & Accent Preferences")
         st.caption("Select modern, accessible healthcare color accents.")
 
+        palette_keys = list(PALETTES.keys())
+        cur_palette = st.session_state.get("selected_palette", "Healthcare Sage")
+        palette_index = palette_keys.index(cur_palette) if cur_palette in palette_keys else 0
         chosen_palette = st.selectbox(
             "Clinical Accent Palette",
-            list(PALETTES.keys()),
-            index=list(PALETTES.keys()).index(st.session_state.get("selected_palette", "Healthcare Sage")),
+            palette_keys,
+            index=palette_index,
             help="Select warm healthcare accent palette."
         )
         if chosen_palette != st.session_state.get("selected_palette"):

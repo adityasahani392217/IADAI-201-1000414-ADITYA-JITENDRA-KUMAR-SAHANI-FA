@@ -212,26 +212,26 @@ def render_overview_page(
         '<div class="hero-box">'
         '<div class="hero-header">'
         '<div>'
-        '<div class="hero-title">TODAY\'S MONITORING</div>'
-        '<div class="hero-subtitle">Continuous Biomechanical Spatial Sentinel &bull; Camera Calibrated</div>'
+        '<div class="hero-title">SENTINEL SURVEILLANCE STATUS</div>'
+        '<div class="hero-subtitle">Continuous Biomechanical Spatial Sentinel &bull; Pose & Kinematics Calibrated</div>'
         '</div>'
-        '<span class="badge active"><span class="status-dot pulse"></span>System Ready</span>'
+        '<span class="badge active"><span class="status-dot pulse"></span>System Armed</span>'
         '</div>'
         '<div class="live-activity-callout">'
         '<div>'
-        '<div class="activity-display-label">CURRENT ACTIVITY STATE</div>'
-        '<div class="activity-display-val">WALKING</div>'
-        '<div class="activity-display-conf">94.7% confidence</div>'
+        '<div class="activity-display-label">REAL-TIME MONITORING STATUS</div>'
+        '<div class="activity-display-val">GUARDIAN READY</div>'
+        '<div class="activity-display-conf">YOLOv8 Pose + BiLSTM Temporal Engine Loaded</div>'
         '</div>'
         '<div>'
         '<span class="badge" style="background:#EBF7EE; color:#257343; border-color:#B8E5C4; font-size:0.88rem; font-weight:700; padding:8px 16px">'
-        '● Normal Activity &bull; Safe'
+        '● 6-Class Clinical Surveillance Active'
         '</span>'
         '</div>'
         '</div>'
-        '<div style="margin-top:14px">'
-        '<div style="font-size:0.80rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary); margin-bottom:8px">Activity Probabilities</div>'
-        + render_horizontal_probability_indicators([0.015, 0.015, 0.935, 0.015, 0.010, 0.010]) +
+        '<div style="margin-top:14px; font-size:0.85rem; color:var(--text-secondary); line-height:1.6">'
+        'Calibrated activities: <b>Sitting, Standing, Walking, Off-Balance, Normal Activity, and Fall Detection</b>. '
+        'Switch to <b>Live Monitor</b> tab to stream live camera telemetry.'
         '</div>'
         '</div>',
         unsafe_allow_html=True
@@ -442,6 +442,42 @@ def render_live_monitor_page(
         alarm_playing = False
         stream_start_time = time.time()
 
+        # Render connecting state immediately so no stale/fake readings are displayed
+        telemetry_slot.markdown(
+            '<div class="card">'
+            '<div class="card-header">'
+            '<span class="card-title">Live Posture</span>'
+            '<span class="badge" style="background:rgba(94,139,122,0.15); color:var(--brand-dark)"><span class="status-dot pulse"></span>Connecting</span>'
+            '</div>'
+            '<div class="activity-display-label">CURRENT ACTIVITY</div>'
+            '<div class="activity-display-val" style="margin-top:2px; color:var(--text-secondary)">CONNECTING...</div>'
+            '<div class="activity-display-conf" style="margin-top:2px; color:var(--text-tertiary)">Negotiating camera stream &bull; 0.0%</div>'
+            '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
+            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">--</div></div>'
+            '<div class="stat-tile"><div class="l">FPS</div><div class="v">0</div></div>'
+            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">No</div></div>'
+            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v">0%</div></div>'
+            '</div>'
+            '<div style="margin-top:14px">'
+            '<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
+            f'{render_sparkline_svg([0.0, 0.0, 0.0, 0.0, 0.0], stroke_color="#94A3B8")}'
+            '</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Live camera feed connecting...</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        bars_slot.markdown(
+            f'<div class="card">'
+            f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
+            f'{render_horizontal_probability_indicators([0.0] * len(ACTIVITY_CLASSES))}'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        activity_cards_slot.markdown(
+            render_activity_cards_html([0.0] * len(ACTIVITY_CLASSES), active_label=None),
+            unsafe_allow_html=True
+        )
+
         while webrtc_context.state.playing:
             # 75-second auto-pause to prevent infinite CPU consumption on cloud containers
             if time.time() - stream_start_time > 75.0:
@@ -453,7 +489,7 @@ def render_live_monitor_page(
 
             worker: Optional[LiveStreamWorker] = webrtc_context.video_processor
             if worker is None:
-                time.sleep(0.2)
+                time.sleep(0.1)
                 continue
 
             # Pass runtime options from session state
@@ -470,56 +506,67 @@ def render_live_monitor_page(
             })
 
             snapshot = worker.get_telemetry_snapshot()
+            person_tracked = bool(snapshot.get("person", False))
             fall_idx = ACTIVITY_CLASSES.index("FALL")
             probs_arr = snapshot.get("probs", [])
-            fall_p = float(probs_arr[fall_idx]) if len(probs_arr) > fall_idx else float(probs_arr[-1]) if probs_arr else 0.0
-            fall_history.append(fall_p)
-            is_fall = snapshot["fall"]
 
-            fall_duration = float(snapshot.get("fall_duration", 0.0))
-
-            # Fall Alert Banner when acute fall detected
-            if is_fall:
-                alert_box_slot.markdown(
-                    render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=fall_duration),
-                    unsafe_allow_html=True
-                )
-                state_color = "var(--status-red)"
-                state_text = "FALL DETECTED"
-            else:
+            # Real telemetry logic: if no person is tracked, probability is 0% across all classes
+            if not person_tracked:
+                probs_arr = [0.0] * len(ACTIVITY_CLASSES)
+                fall_p = 0.0
+                is_fall = False
+                fall_duration = 0.0
+                curr_label = "NO PERSON DETECTED"
+                conf_display = "--"
+                person_str = "No"
+                state_color = "var(--text-tertiary)"
+                badge_text = snapshot.get("engine") or "AI"
+                status_desc = f'Stand in frame to track posture &bull; {snapshot["fps"]:.0f} FPS'
                 alert_box_slot.empty()
-                if snapshot["label"] in ("WARMING UP", "STARTING"):
-                    state_color = "var(--status-amber)"
-                    state_text = "ANALYZING..."
-                elif snapshot["label"] in ("NO PERSON", "NORMAL_ACTIVITY"):
-                    state_color = "var(--status-green)"
-                    state_text = "NORMAL ACTIVITY (SAFE)"
+            else:
+                fall_p = float(probs_arr[fall_idx]) if len(probs_arr) > fall_idx else float(probs_arr[-1]) if probs_arr else 0.0
+                is_fall = snapshot["fall"]
+                fall_duration = float(snapshot.get("fall_duration", 0.0))
+                curr_label = snapshot["label"]
+                curr_conf = float(snapshot.get("conf", 0.0))
+                conf_display = f"{curr_conf:.1%}"
+                person_str = "Yes"
+                badge_text = snapshot.get("engine", "AI")
+                status_desc = f'Confidence <b>{curr_conf:.1%}</b> &bull; {snapshot["fps"]:.0f} FPS'
 
-                elif snapshot["label"] == "OFF_BALANCE":
+                # Fall Alert Banner when acute fall detected
+                if is_fall:
+                    alert_box_slot.markdown(
+                        render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=fall_duration),
+                        unsafe_allow_html=True
+                    )
+                    state_color = "var(--status-red)"
+                elif curr_label in ("OFF_BALANCE", "OFF BALANCE"):
+                    alert_box_slot.empty()
                     state_color = "var(--status-amber)"
-                    state_text = "CAUTION: OFF BALANCE"
                 else:
+                    alert_box_slot.empty()
                     state_color = "var(--status-green)"
-                    state_text = "NOMINAL & SAFE"
+
+            fall_history.append(fall_p)
 
             # Telemetry Side Card
-            person_str = "Yes" if snapshot["person"] else "No"
-            err_notice = f'<div style="font-size:0.75rem; color:var(--text-tertiary); margin-top:8px">Notice: {snapshot["error"]}</div>' if snapshot["error"] else ""
+            err_notice = f'<div style="font-size:0.75rem; color:var(--text-tertiary); margin-top:8px">Notice: {snapshot["error"]}</div>' if snapshot.get("error") else ""
 
             telemetry_slot.markdown(
                 f'<div class="card">'
                 f'<div class="card-header">'
                 f'<span class="card-title">Live Posture</span>'
-                f'<span class="badge active"><span class="status-dot"></span>{snapshot["engine"]}</span>'
+                f'<span class="badge active"><span class="status-dot"></span>{badge_text}</span>'
                 f'</div>'
-                f'<div style="font-size:2.2rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
-                f'{snapshot["label"].replace("_", " ").title()}'
+                f'<div style="font-size:2.0rem; font-weight:800; color:{state_color}; letter-spacing:-0.02em; line-height:1.1">'
+                f'{curr_label.replace("_", " ").title()}'
                 f'</div>'
                 f'<div style="font-size:0.90rem; color:var(--text-secondary); margin-top:4px">'
-                f'Confidence <b>{snapshot["conf"]:.1%}</b> &bull; {snapshot["fps"]:.0f} FPS'
+                f'{status_desc}'
                 f'</div>'
                 f'<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-                f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{snapshot["conf"]:.0%}</div></div>'
+                f'<div class="stat-tile"><div class="l">Confidence</div><div class="v">{conf_display}</div></div>'
                 f'<div class="stat-tile"><div class="l">FPS</div><div class="v">{snapshot["fps"]:.0f}</div></div>'
                 f'<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">{person_str}</div></div>'
                 f'<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:{"var(--status-red)" if fall_p > options["fall_thr"] else "inherit"}">{fall_p:.0%}</div></div>'
@@ -537,14 +584,15 @@ def render_live_monitor_page(
             bars_slot.markdown(
                 f'<div class="card">'
                 f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-                f'{render_horizontal_probability_indicators(snapshot["probs"], highlight_fall=is_fall)}'
+                f'{render_horizontal_probability_indicators(probs_arr, highlight_fall=is_fall)}'
                 f'</div>',
                 unsafe_allow_html=True
             )
 
-            # 4 Activity Cards below camera
+            # Activity Cards below camera
+            active_card = curr_label if person_tracked else None
             activity_cards_slot.markdown(
-                render_activity_cards_html(snapshot["probs"], snapshot["label"], animate=False),
+                render_activity_cards_html(probs_arr, active_card, animate=False),
                 unsafe_allow_html=True
             )
 
@@ -559,7 +607,6 @@ def render_live_monitor_page(
                     with alarm_slot:
                         components.html(render_escalating_alarm_synthesizer(fall_duration, options.get("alarm_volume", 0.8), is_active=True), height=115)
                         components.html(render_sos_countdown_html(15, fall_duration), height=140)
-
 
                     alarm_playing = True
                     st.session_state["_live_alarm_stage"] = current_stage
@@ -582,7 +629,6 @@ def render_live_monitor_page(
             # Sleep 0.05s (20 Hz refresh) for snappy zero-latency telemetry updates
             time.sleep(0.05)
 
-
         alarm_slot.empty()
 
     else:
@@ -590,33 +636,33 @@ def render_live_monitor_page(
             '<div class="card">'
             '<div class="card-header">'
             '<span class="card-title">Live Posture</span>'
-            '<span class="badge active"><span class="status-dot"></span>Calibrated</span>'
+            '<span class="badge" style="background:rgba(100,116,139,0.12); color:var(--text-secondary); border-color:var(--border-color)"><span class="status-dot" style="background:#94A3B8"></span>Standby</span>'
             '</div>'
             '<div class="activity-display-label">CURRENT ACTIVITY</div>'
-            '<div class="activity-display-val" style="margin-top:2px">WALKING</div>'
-            '<div class="activity-display-conf" style="margin-top:2px">94.7% confidence</div>'
+            '<div class="activity-display-val" style="margin-top:2px; color:var(--text-tertiary)">CAMERA STANDBY</div>'
+            '<div class="activity-display-conf" style="margin-top:2px; color:var(--text-tertiary)">Awaiting video stream &bull; 0.0%</div>'
             '<div class="stat-grid" style="grid-template-columns:repeat(2,1fr); margin-top:14px">'
-            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">94.7%</div></div>'
-            '<div class="stat-tile"><div class="l">FPS</div><div class="v">30</div></div>'
-            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">Yes</div></div>'
-            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v" style="color:var(--status-green)">1.4%</div></div>'
+            '<div class="stat-tile"><div class="l">Confidence</div><div class="v">--</div></div>'
+            '<div class="stat-tile"><div class="l">FPS</div><div class="v">0</div></div>'
+            '<div class="stat-tile"><div class="l">Subject Tracked</div><div class="v">No</div></div>'
+            '<div class="stat-tile"><div class="l">Fall Risk</div><div class="v">0%</div></div>'
             '</div>'
             '<div style="margin-top:14px">'
             '<div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary)">Fall Probability Trend</div>'
-            f'{render_sparkline_svg([0.02, 0.018, 0.016, 0.015, 0.014], stroke_color="#5E8B7A")}'
+            f'{render_sparkline_svg([0.0, 0.0, 0.0, 0.0, 0.0], stroke_color="#94A3B8")}'
             '</div>'
-            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview to connect live camera stream.</div>'
+            '<div style="font-size:0.80rem; color:var(--text-tertiary); margin-top:10px">Click <b>START</b> on video preview above to connect live camera stream.</div>'
             '</div>',
             unsafe_allow_html=True
         )
         bars_slot.markdown(
             f'<div class="card">'
             f'<div class="card-header"><span class="card-title">Activity Probabilities</span></div>'
-            f'{render_horizontal_probability_indicators([0.015, 0.015, 0.935, 0.015, 0.010, 0.010])}'
+            f'{render_horizontal_probability_indicators([0.0] * len(ACTIVITY_CLASSES))}'
             f'</div>',
             unsafe_allow_html=True
         )
-        activity_cards_slot.markdown(render_activity_cards_html([0.015, 0.015, 0.935, 0.015, 0.010, 0.010], active_label="WALKING"), unsafe_allow_html=True)
+        activity_cards_slot.markdown(render_activity_cards_html([0.0] * len(ACTIVITY_CLASSES), active_label=None), unsafe_allow_html=True)
 
 
 # =========================================================

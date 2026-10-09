@@ -516,7 +516,7 @@ class LiveStreamWorker(VideoProcessorBase):
         self.decision_filter = TemporalDecisionFilter()
         self.feature_buffer = deque(maxlen=SEQUENCE_LENGTH)
 
-        self.current_state = {"label": "WARMING UP", "conf": 0.0, "probs": [1.0 / len(ACTIVITY_CLASSES)] * len(ACTIVITY_CLASSES)}
+        self.current_state = {"label": "SEARCHING", "conf": 0.0, "probs": [0.0] * len(ACTIVITY_CLASSES)}
         self.last_subject: Optional[Dict[str, Any]] = None
         self.consecutive_misses: int = 0
         self.frame_counter: int = 0
@@ -527,9 +527,9 @@ class LiveStreamWorker(VideoProcessorBase):
         self._state_lock = threading.Lock()
         self._fall_onset_time: float = 0.0
         self._public_telemetry = {
-            "label": "STARTING",
+            "label": "SEARCHING",
             "conf": 0.0,
-            "probs": [1.0 / len(ACTIVITY_CLASSES)] * len(ACTIVITY_CLASSES),
+            "probs": [0.0] * len(ACTIVITY_CLASSES),
             "fps": 0.0,
             "buffer": 0,
             "person": False,
@@ -605,6 +605,9 @@ class LiveStreamWorker(VideoProcessorBase):
         elif norm_label in ("OFF_BALANCE", "OFF BALANCE", "WARNING"):
             dot_color = (30, 200, 245)   # Yellow / Amber
             badge_border = (30, 200, 245)
+        elif norm_label in ("NO PERSON", "NO PERSON DETECTED", "SEARCHING", "WARMING UP", "STARTING"):
+            dot_color = (150, 150, 150)  # Neutral Gray
+            badge_border = (200, 200, 200)
         else:
             dot_color = (70, 195, 60)    # Green
             badge_border = (200, 215, 195)
@@ -634,16 +637,17 @@ class LiveStreamWorker(VideoProcessorBase):
             1,
             cv2.LINE_AA
         )
-        cv2.putText(
-            frame_bgr,
-            f"{confidence:.0%}",
-            (bx + badge_w - 56, by + 29),
-            cv2.FONT_HERSHEY_DUPLEX,
-            0.65,
-            dot_color,
-            1,
-            cv2.LINE_AA
-        )
+        if norm_label not in ("NO PERSON", "NO PERSON DETECTED", "SEARCHING", "WARMING UP", "STARTING"):
+            cv2.putText(
+                frame_bgr,
+                f"{confidence:.0%}",
+                (bx + badge_w - 56, by + 29),
+                cv2.FONT_HERSHEY_DUPLEX,
+                0.65,
+                dot_color,
+                1,
+                cv2.LINE_AA
+            )
 
         if is_fall:
             # Urgent perimeter alert line in Red
@@ -738,16 +742,24 @@ class LiveStreamWorker(VideoProcessorBase):
                     self.feature_buffer.clear()
                     self.kinematics.reset()
                     self.decision_filter.reset()
-                    norm_probs = [0.0] * len(ACTIVITY_CLASSES)
-                    norm_idx = ACTIVITY_CLASSES.index("NORMAL_ACTIVITY") if "NORMAL_ACTIVITY" in ACTIVITY_CLASSES else 0
-                    norm_probs[norm_idx] = 0.95
-                    self.current_state = {"label": "NORMAL_ACTIVITY", "conf": 0.95, "probs": norm_probs}
+                    self.current_state = {
+                        "label": "NO PERSON DETECTED",
+                        "conf": 0.0,
+                        "probs": [0.0] * len(ACTIVITY_CLASSES)
+                    }
 
 
         person_visible = self.consecutive_misses <= 3 and self.last_subject is not None
-        curr_label = self.current_state["label"]
-        curr_conf = self.current_state["conf"]
-        is_fall = curr_label == "FALL"
+        if not person_visible:
+            curr_label = "NO PERSON DETECTED"
+            curr_conf = 0.0
+            probs_to_send = [0.0] * len(ACTIVITY_CLASSES)
+            is_fall = False
+        else:
+            curr_label = self.current_state["label"]
+            curr_conf = self.current_state["conf"]
+            probs_to_send = list(self.current_state["probs"])
+            is_fall = curr_label == "FALL"
 
         if person_visible and self.last_subject is not None:
             render_pose_skeleton(
@@ -782,7 +794,7 @@ class LiveStreamWorker(VideoProcessorBase):
         self._set_telemetry(
             label=curr_label,
             conf=float(curr_conf),
-            probs=list(self.current_state["probs"]),
+            probs=probs_to_send,
             fps=float(self.fps_meter),
             buffer=len(self.feature_buffer),
             person=bool(person_visible),

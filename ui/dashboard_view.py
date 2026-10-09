@@ -422,7 +422,7 @@ def render_live_monitor_page(
                 st.session_state["cam_stream_id"] += 1
                 st.rerun()
 
-        # Direct continuous live stream (optimized low latency, 24 FPS, smooth real-time tracking)
+        # Direct continuous live stream (ultra-low latency 15 FPS, zero queue buffering)
         webrtc_context = webrtc_streamer(
             key=f"safefall-live-{st.session_state['cam_stream_id']}",
             mode=WebRtcMode.SENDRECV,
@@ -431,10 +431,19 @@ def render_live_monitor_page(
                 "video": {
                     "width": {"ideal": 360, "max": 480},
                     "height": {"ideal": 270, "max": 360},
-                    "frameRate": {"ideal": 24, "max": 24}
+                    "frameRate": {"ideal": 15, "max": 15}
                 },
                 "audio": False
             },
+            video_html_attrs={
+                "autoPlay": True,
+                "muted": True,
+                "playsInline": True,
+                "controls": False
+            },
+            video_receiver_size=2,
+            media_toggle_controls=False,
+            sendback_audio=False,
             video_processor_factory=lambda: LiveStreamWorker(coordinator, falls_dir),
             async_processing=True
         )
@@ -493,6 +502,8 @@ def render_live_monitor_page(
             render_activity_cards_html([0.0] * len(ACTIVITY_CLASSES), active_label=None),
             unsafe_allow_html=True
         )
+        loop_tick = 0
+        last_rendered_card = None
 
         while webrtc_context.state.playing:
             # 75-second auto-pause to prevent infinite CPU consumption on cloud containers
@@ -605,12 +616,15 @@ def render_live_monitor_page(
                 unsafe_allow_html=True
             )
 
-            # Activity Cards below camera
+            # Activity Cards below camera (cached to prevent DOM thrashing)
             active_card = curr_label if person_tracked else None
-            activity_cards_slot.markdown(
-                render_activity_cards_html(probs_arr, active_card, animate=False),
-                unsafe_allow_html=True
-            )
+            loop_tick += 1
+            if active_card != last_rendered_card or loop_tick % 4 == 0:
+                activity_cards_slot.markdown(
+                    render_activity_cards_html(probs_arr, active_card, animate=False),
+                    unsafe_allow_html=True
+                )
+                last_rendered_card = active_card
 
             # Escalating Audio Alarm: progressively harder, louder, and higher-pitched as fall persists!
             is_silenced = time.time() < st.session_state.get("silence_alarm_until", 0.0)
@@ -642,8 +656,8 @@ def render_live_monitor_page(
                     unsafe_allow_html=True
                 )
 
-            # Sleep 0.10s (10 Hz refresh) for smooth zero-latency telemetry updates without WebSocket DOM thrashing
-            time.sleep(0.10)
+            # Sleep 0.12s (~8 Hz refresh) for smooth zero-latency telemetry updates without WebSocket DOM thrashing
+            time.sleep(0.12)
 
         alarm_slot.empty()
 

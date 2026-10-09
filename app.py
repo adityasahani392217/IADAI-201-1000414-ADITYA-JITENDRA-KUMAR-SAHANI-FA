@@ -48,7 +48,7 @@ def initialize_pipeline_coordinator() -> SafeFallPipelineCoordinator:
 def initialize_session_defaults() -> None:
     """Ensure all clinical settings and navigation states exist in session state."""
     defaults = {
-        "nav_page": "Overview",
+        "nav_page": "Live Monitor",
         "setting_fall_thr": 0.60,
         "setting_need": 2,
         "setting_alpha": 0.65,
@@ -130,23 +130,37 @@ def main() -> None:
 
         # Primary Navigation
         nav_options = [
-            "📊 Overview",
-            "📹 Live Monitor",
-            "🔬 Media Analysis",
+            "📹 Live Camera",
+            "📷 Photo",
+            "🎥 Video",
+            "📸 Camera Snapshot",
             "🚨 Emergency SOS",
-            "📈 Model Insights",
-            "🗃️ Dataset",
-            "🕒 History",
+            "📊 Overview",
             "⚙️ Settings"
         ]
 
-        # Determine current selection index
-        current_page = st.session_state.get("nav_page", "Overview")
-        current_index = 0
-        for i, opt in enumerate(nav_options):
-            if current_page in opt:
-                current_index = i
-                break
+        page_to_sidebar = {
+            "Live Monitor": "📹 Live Camera",
+            "Photo": "📷 Photo",
+            "Video": "🎥 Video",
+            "Snapshot": "📸 Camera Snapshot",
+            "Emergency SOS": "🚨 Emergency SOS",
+            "Overview": "📊 Overview",
+            "Settings": "⚙️ Settings"
+        }
+        sidebar_to_page = {
+            "📹 Live Camera": "Live Monitor",
+            "📷 Photo": "Photo",
+            "🎥 Video": "Video",
+            "📸 Camera Snapshot": "Snapshot",
+            "🚨 Emergency SOS": "Emergency SOS",
+            "📊 Overview": "Overview",
+            "⚙️ Settings": "Settings"
+        }
+
+        current_page = st.session_state.get("nav_page", "Live Monitor")
+        current_sidebar_item = page_to_sidebar.get(current_page, "📹 Live Camera")
+        current_index = nav_options.index(current_sidebar_item) if current_sidebar_item in nav_options else 0
 
         selected_nav = st.radio(
             "Navigation Menu",
@@ -156,10 +170,9 @@ def main() -> None:
             key="sidebar_navigation_radio"
         )
 
-        # Clean selected page name without emoji
-        page_name_clean = selected_nav.split(" ", 1)[-1]
-        if page_name_clean != st.session_state.get("nav_page"):
-            st.session_state["nav_page"] = page_name_clean
+        new_page = sidebar_to_page.get(selected_nav, "Live Monitor")
+        if new_page != current_page:
+            st.session_state["nav_page"] = new_page
             st.rerun()
 
         st.write("")
@@ -213,11 +226,11 @@ def main() -> None:
     # -------------------------------------------------------------
     runtime_options: Dict[str, Any] = {
         "fall_thr": st.session_state.get("setting_fall_thr", 0.60),
-        "need": st.session_state.get("setting_need", 4),
-        "alpha": st.session_state.get("setting_alpha", 0.35),
-        "stride": st.session_state.get("setting_stride", 1),
-        "imgsz": st.session_state.get("setting_imgsz", 480),
-        "desk_mode": st.session_state.get("setting_desk_mode", True),
+        "need": st.session_state.get("setting_need", 2),
+        "alpha": st.session_state.get("setting_alpha", 0.65),
+        "stride": st.session_state.get("setting_stride", 2),
+        "imgsz": st.session_state.get("setting_imgsz", 192),
+        "desk_mode": st.session_state.get("setting_desk_mode", False),
         "max_frames": st.session_state.get("setting_max_frames", 900),
         "enhance": st.session_state.get("setting_enhance", False),
         "gamma": st.session_state.get("setting_gamma", 1.6),

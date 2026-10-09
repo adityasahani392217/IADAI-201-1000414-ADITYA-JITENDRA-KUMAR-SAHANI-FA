@@ -601,160 +601,174 @@ def render_live_monitor_page(
 # =========================================================
 # PAGE 3: MEDIA ANALYSIS
 # =========================================================
+# =========================================================
+# PAGE 3A: PHOTO ANALYSIS (IMAGE UPLOAD & BENCHMARKS)
+# =========================================================
+def render_photo_page(
+    coordinator: SafeFallPipelineCoordinator,
+    options: Dict[str, Any]
+) -> None:
+    """Fast, single-frame human pose estimation and activity classification from images."""
+    st.markdown(
+        render_section_title(
+            "Photo Analysis",
+            "Upload any static photograph or select a benchmark to evaluate anatomical joint angles."
+        ),
+        unsafe_allow_html=True
+    )
+
+    col_up, col_bench = st.columns([1.5, 1.0])
+
+    with col_up:
+        uploaded = st.file_uploader(
+            "Upload photo (JPG, PNG, WebP)",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="photo_file_uploader"
+        )
+
+    with col_bench:
+        st.markdown("**Or Test Instant Clinical Benchmark:**")
+        sample_dir = coordinator.root_dir / "data" / "sample_media"
+        sample_map = {
+            "None": None,
+            "🚨 Fall Incident": sample_dir / "fall_sample_1.jpg",
+            "🚶 Walking Sample": sample_dir / "walking_sample_1.jpg",
+            "🪑 Sitting Posture": sample_dir / "sitting_sample_1.jpg",
+            "🧍 Standing Posture": sample_dir / "standing_sample_1.jpg",
+            "⚠️ Off-Balance Posture": sample_dir / "off_balance_sample_1.jpg",
+            "✅ Normal Activity": sample_dir / "normal_sample_1.jpg",
+        }
+        chosen_sample = st.selectbox(
+            "Select Clinical Sample",
+            list(sample_map.keys()),
+            key="photo_sample_select"
+        )
+
+    target_frame = None
+    target_name = ""
+
+    if uploaded is not None:
+        raw_bytes = np.frombuffer(uploaded.getvalue(), dtype=np.uint8)
+        target_frame = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
+        target_name = f"Photo: {uploaded.name}"
+    elif chosen_sample != "None" and sample_map.get(chosen_sample) and sample_map[chosen_sample].exists():
+        target_frame = cv2.imread(str(sample_map[chosen_sample]))
+        target_name = f"Benchmark: {chosen_sample}"
+
+    if target_frame is not None:
+        if options.get("enhance", False):
+            target_frame = enhance_lowlight_image(target_frame, options.get("gamma", 1.6))
+        with st.spinner("Analyzing posture with YOLOv8 pose detector..."):
+            result = coordinator.analyze_single_image(target_frame, options)
+        if result is None:
+            st.info("✅ **Normal Activity (Room Vacant / All Clear)**: No human subject detected.")
+        else:
+            render_diagnostic_report(result, target_name, coordinator, theme_mode="light")
+
+
+# =========================================================
+# PAGE 3B: VIDEO ANALYSIS
+# =========================================================
+def render_video_page(
+    coordinator: SafeFallPipelineCoordinator,
+    options: Dict[str, Any]
+) -> None:
+    """Evaluate temporal 30-frame kinematics across recorded video files."""
+    st.markdown(
+        render_section_title(
+            "Video Sequence Analysis",
+            "Upload recorded video or test with a preloaded clinical fall sequence."
+        ),
+        unsafe_allow_html=True
+    )
+
+    col_up, col_bench = st.columns([1.5, 1.0])
+
+    with col_up:
+        uploaded_video = st.file_uploader(
+            "Upload video (MP4, AVI, MOV, WebM)",
+            type=["mp4", "avi", "mov", "m4v", "webm"],
+            key="video_file_uploader"
+        )
+
+    with col_bench:
+        st.markdown("**Or Test Instant Clinical Fall Sequence:**")
+        sample_video_path = coordinator.root_dir / "data" / "sample_media" / "demo_fall_sequence.mp4"
+        run_sample = st.button("📹 Run Sample Fall Video", key="btn_run_sample_video", use_container_width=True)
+
+    temp_video_path = None
+    video_source_name = ""
+
+    if uploaded_video is not None:
+        suffix = Path(uploaded_video.name).suffix.lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(uploaded_video.getvalue())
+            temp_video_path = tmp.name
+        video_source_name = f"Uploaded Video: {uploaded_video.name}"
+    elif run_sample and sample_video_path.exists():
+        temp_video_path = str(sample_video_path)
+        video_source_name = "Benchmark: Elderly Fall Sequence (Video)"
+
+    if temp_video_path is not None:
+        try:
+            progress_bar = st.progress(0.0, text="Evaluating temporal sliding windows...")
+            result = coordinator.analyze_video_file(
+                temp_video_path,
+                options,
+                max_frames=options.get("max_frames", 900),
+                progress_callback=lambda p: progress_bar.progress(p)
+            )
+            progress_bar.empty()
+            if result:
+                render_diagnostic_report(result, video_source_name, coordinator, theme_mode="light")
+            else:
+                st.warning("No consistent subject tracked in this video sequence.")
+        finally:
+            if uploaded_video is not None and temp_video_path and os.path.exists(temp_video_path):
+                try:
+                    os.unlink(temp_video_path)
+                except Exception:
+                    pass
+
+
+# =========================================================
+# PAGE 3C: CAMERA SNAPSHOT (1-CLICK PICTURE)
+# =========================================================
+def render_snapshot_page(
+    coordinator: SafeFallPipelineCoordinator,
+    options: Dict[str, Any]
+) -> None:
+    """Direct 1-shot camera capture via native Streamlit camera input."""
+    st.markdown(
+        render_section_title(
+            "Camera Snapshot",
+            "Capture a single photo from your webcam to audit posture and verify fall risk."
+        ),
+        unsafe_allow_html=True
+    )
+
+    photo_capture = st.camera_input("Take a picture", key="snapshot_camera_main")
+    if photo_capture is not None:
+        raw_bytes = np.frombuffer(photo_capture.getvalue(), dtype=np.uint8)
+        frame = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
+        if frame is not None:
+            if options.get("enhance", False):
+                frame = enhance_lowlight_image(frame, options.get("gamma", 1.6))
+            with st.spinner("Analyzing posture landmarks..."):
+                result = coordinator.analyze_single_image(frame, options)
+            if result is None:
+                st.info("✅ **Normal Activity (Room Vacant / All Clear)**: No human subject detected.")
+            else:
+                render_diagnostic_report(result, "Webcam Snapshot", coordinator, theme_mode="light")
+
+
 def render_media_analysis_page(
     coordinator: SafeFallPipelineCoordinator,
     falls_dir: Path,
     options: Dict[str, Any]
 ) -> None:
-    """Render media upload, instant webcam snapshot audit, and sample benchmarks."""
-    st.markdown(
-        render_section_title(
-            "Media Analysis",
-            "Inspect recorded video files or static images for human pose estimation and fall verification."
-        ),
-        unsafe_allow_html=True
-    )
-
-    st.markdown(render_pipeline_breadcrumb(1), unsafe_allow_html=True)
-
-    tab_upload, tab_sample, tab_snapshot = st.tabs([
-        "📁 Upload Media File",
-        "🧪 Load Sample Benchmark",
-        "📸 Live Photo Audit"
-    ])
-
-    # TAB 1: FILE UPLOADER
-    with tab_upload:
-        st.markdown(
-            '<div class="upload-dropzone">'
-            '<div class="upload-icon">☁️</div>'
-            '<div class="upload-title">Drop media here</div>'
-            '<div class="upload-desc">Supports MP4, AVI, MOV, JPG, PNG &bull; Max file size 200 MB</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        uploaded = st.file_uploader(
-            "Browse files",
-            type=["jpg", "jpeg", "png", "mp4", "avi", "mov", "m4v"],
-            label_visibility="collapsed",
-            key="media_file_uploader"
-        )
-
-        if uploaded is not None:
-            extension = Path(uploaded.name).suffix.lower()
-            try:
-                if extension in (".jpg", ".jpeg", ".png"):
-                    raw_bytes = np.frombuffer(uploaded.getvalue(), dtype=np.uint8)
-                    frame = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
-                    if frame is None:
-                        raise ValueError("Could not decode image file.")
-                    if options.get("enhance", False):
-                        frame = enhance_lowlight_image(frame, options.get("gamma", 1.6))
-                    with st.spinner("Analyzing posture landmarks and geometry..."):
-                        result = coordinator.analyze_single_image(frame, options)
-                    if result is None:
-                        st.warning("No human pose could be extracted from this image. Ensure adequate lighting and framing.")
-                    else:
-                        render_diagnostic_report(result, f"Image: {uploaded.name}", coordinator, theme_mode="light")
-                else:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
-                        tmp.write(uploaded.getvalue())
-                        temp_filepath = tmp.name
-                    try:
-                        progress_meter = st.progress(0.0, text="Tracking poses and evaluating temporal windows...")
-                        result = coordinator.analyze_video_file(
-                            temp_filepath,
-                            options,
-                            max_frames=options.get("max_frames", 900),
-                            progress_callback=lambda p: progress_meter.progress(p)
-                        )
-                        progress_meter.empty()
-                    finally:
-                        try:
-                            os.unlink(temp_filepath)
-                        except Exception:
-                            pass
-
-                    if result is None:
-                        st.warning("No consistent subject tracked in this video sequence.")
-                    else:
-                        render_diagnostic_report(result, f"Video: {uploaded.name}", coordinator, theme_mode="light")
-            except Exception as e:
-                st.warning(f"File analysis error: {str(e)[:200]}")
-
-    # TAB 2: PRELOADED SAMPLE MEDIA (FOR INSTANT EVALUATION)
-    with tab_sample:
-        st.markdown("#### Test Immediate Inference with Project Sample Benchmarks")
-        st.caption("Select any pre-loaded test sequence to evaluate pose estimation and kinematics instantly.")
-
-        sample_dir = coordinator.root_dir / "data" / "sample_media"
-        sample_options = {
-            "🚶 Walking Sample (Image)": sample_dir / "walking_sample_1.jpg",
-            "🚨 Fall Incident (Image)": sample_dir / "fall_sample_1.jpg",
-            "🪑 Sitting Posture (Image)": sample_dir / "sitting_sample_1.jpg",
-            "🧍 Standing Posture (Image)": sample_dir / "standing_sample_1.jpg",
-            "⚠️ Off-Balance Posture (Image)": sample_dir / "off_balance_sample_1.jpg",
-            "✅ Normal Activity (Image)": sample_dir / "normal_sample_1.jpg",
-            "📹 Elderly Fall Sequence (Video)": sample_dir / "demo_fall_sequence.mp4",
-        }
-
-        selected_sample_label = st.selectbox("Select Benchmark Sample:", list(sample_options.keys()))
-        selected_sample_path = sample_options[selected_sample_label]
-
-        if st.button("Run Diagnostic on Selected Benchmark", key="btn_run_sample", use_container_width=True):
-            if not selected_sample_path.exists():
-                st.error(f"Sample file not found at: {selected_sample_path}")
-            else:
-                ext = selected_sample_path.suffix.lower()
-                try:
-                    if ext in (".jpg", ".jpeg", ".png"):
-                        frame = cv2.imread(str(selected_sample_path))
-                        with st.spinner("Executing YOLOv8 pose extraction..."):
-                            result = coordinator.analyze_single_image(frame, options)
-                        if result:
-                            render_diagnostic_report(result, f"Benchmark: {selected_sample_label}", coordinator, theme_mode="light")
-                        else:
-                            st.warning("No pose identified in sample.")
-                    else:
-                        progress_bar = st.progress(0.0, text="Evaluating 30-frame temporal windows...")
-                        result = coordinator.analyze_video_file(
-                            str(selected_sample_path),
-                            options,
-                            max_frames=options.get("max_frames", 900),
-                            progress_callback=lambda p: progress_bar.progress(p)
-                        )
-                        progress_bar.empty()
-                        if result:
-                            render_diagnostic_report(result, f"Benchmark: {selected_sample_label}", coordinator, theme_mode="light")
-                        else:
-                            st.warning("Could not evaluate video sequence.")
-                except Exception as ex:
-                    st.error(f"Error processing sample: {ex}")
-
-    # TAB 3: LIVE PHOTO AUDIT
-    with tab_snapshot:
-        st.markdown("#### Instantaneous Webcam Snapshot Audit")
-        st.caption("Capture a single frame from your webcam for instantaneous biomechanical verification.")
-
-        photo_capture = st.camera_input("Capture frame", label_visibility="collapsed", key="snapshot_camera")
-        if photo_capture is not None:
-            try:
-                raw_bytes = np.frombuffer(photo_capture.getvalue(), dtype=np.uint8)
-                frame = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
-                if frame is None:
-                    raise ValueError("Failed to decode camera image stream.")
-                if options.get("enhance", False):
-                    frame = enhance_lowlight_image(frame, options.get("gamma", 1.6))
-                with st.spinner("Analyzing posture landmarks..."):
-                    result = coordinator.analyze_single_image(frame, options)
-                if result is None:
-                    st.success("✅ **Normal Activity (Room Vacant / All Clear)**: No human subject or postural hazard detected.")
-                else:
-
-                    render_diagnostic_report(result, "Webcam Snapshot Audit", coordinator, theme_mode="light")
-            except Exception as e:
-                st.warning(f"Snapshot analysis could not be completed: {str(e)[:200]}")
+    """Backward-compatible media analysis router."""
+    render_photo_page(coordinator, options)
 
 
 # =========================================================
@@ -1438,23 +1452,68 @@ def render_dashboard(
     )
     st.markdown(top_header_html, unsafe_allow_html=True)
 
-    current_page = st.session_state.get("nav_page", "Overview")
+    mode_list = [
+        "📹 Live Camera",
+        "📷 Photo",
+        "🎥 Video",
+        "📸 Camera Snapshot",
+        "🚨 Emergency SOS",
+        "📊 Overview",
+        "⚙️ Settings"
+    ]
+    page_to_mode = {
+        "Live Monitor": "📹 Live Camera",
+        "Photo": "📷 Photo",
+        "Video": "🎥 Video",
+        "Snapshot": "📸 Camera Snapshot",
+        "Emergency SOS": "🚨 Emergency SOS",
+        "Overview": "📊 Overview",
+        "Settings": "⚙️ Settings",
+        "Media Analysis": "📷 Photo",
+    }
+    mode_to_page = {
+        "📹 Live Camera": "Live Monitor",
+        "📷 Photo": "Photo",
+        "🎥 Video": "Video",
+        "📸 Camera Snapshot": "Snapshot",
+        "🚨 Emergency SOS": "Emergency SOS",
+        "📊 Overview": "Overview",
+        "⚙️ Settings": "Settings"
+    }
 
-    if current_page == "Overview":
-        render_overview_page(coordinator, falls_dir, options)
-    elif current_page == "Live Monitor":
+    current_page = st.session_state.get("nav_page", "Live Monitor")
+    current_mode = page_to_mode.get(current_page, "📹 Live Camera")
+    current_idx = mode_list.index(current_mode) if current_mode in mode_list else 0
+
+    selected_mode = st.radio(
+        "Detection Mode",
+        mode_list,
+        index=current_idx,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="top_detection_mode_radio"
+    )
+
+    new_page = mode_to_page.get(selected_mode, "Live Monitor")
+    if new_page != current_page:
+        st.session_state["nav_page"] = new_page
+        st.rerun()
+
+    if new_page == "Live Monitor":
         render_live_monitor_page(coordinator, falls_dir, options)
-    elif current_page == "Emergency SOS":
+    elif new_page == "Photo":
+        render_photo_page(coordinator, options)
+    elif new_page == "Video":
+        render_video_page(coordinator, options)
+    elif new_page == "Snapshot":
+        render_snapshot_page(coordinator, options)
+    elif new_page == "Emergency SOS":
         render_emergency_sos_page(coordinator, falls_dir, options)
-    elif current_page == "Media Analysis":
-        render_media_analysis_page(coordinator, falls_dir, options)
-    elif current_page == "Model Insights":
-        render_model_insights_page(coordinator, options)
-    elif current_page == "Dataset":
-        render_dataset_page(coordinator)
-    elif current_page == "History":
-        render_history_page(falls_dir)
-    elif current_page == "Settings":
-        render_settings_page(coordinator, options)
-    else:
+    elif new_page == "Overview":
         render_overview_page(coordinator, falls_dir, options)
+    elif new_page == "Settings":
+        render_settings_page(coordinator, options)
+    elif new_page in ("Model Insights", "Dataset", "History"):
+        render_overview_page(coordinator, falls_dir, options)
+    else:
+        render_live_monitor_page(coordinator, falls_dir, options)

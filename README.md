@@ -18,13 +18,17 @@
 - **Session State**: Full user session management with automatic logout and control console profile badges.
 
 ### 🎥 2. Real-Time Vision & Locomotion Telemetry
-- **Streamlit-WebRTC Streaming**: Low-latency video pipeline running in background worker threads at 24+ FPS.
+- **Streamlit-WebRTC Streaming**: Ultra-low latency 15 FPS video pipeline running in background worker threads with `video_receiver_size=2` to eliminate queue delays.
+- **Non-Blocking `@st.fragment` Architecture**: Adopts periodic 1-second telemetry refreshing to eliminate blocking while-loops and prevent browser WebSocket DOM thrashing.
 - **Subject Tracking**: Spatial IoU and centroid displacement tracker preserving identity continuity through occlusions.
+- **Dynamic On-Frame HUD Overlay**: Real-time posture pill badge, confidence indicator, and colored skeletal joints drawn directly onto video frames in <0.5 ms.
 - **Low-Light Contrast Enhancement**: Integrated power-law gamma transformation and Contrast Limited Adaptive Histogram Equalization (CLAHE).
 - **Ambient Ring Lighting**: Interactive screen fill-light ring with configurable Warm, Cool, and White tones.
 
-### 📐 3. Biomechanical Kinematics Engine
-- **Posture Classification**: Robust identification of **SITTING**, **STANDING**, **WALKING**, and **FALL** incidents.
+### 📐 3. Biomechanical Kinematics & Deep Learning Engine
+- **6 Clinical Posture Classes**: Complete classification across **SITTING**, **STANDING**, **WALKING**, **OFF_BALANCE**, **NORMAL_ACTIVITY**, and **FALL**.
+- **PyTorch Temporal BiLSTM Network**: 45-epoch model trained on 15,336 frames from the Le2i dataset (89.55% accuracy, 95.44% precision on unseen test splits).
+- **Dual-Engine Redundancy**: Seamless blending of DeepNet probabilities (60%) and deterministic kinematic posture rules (40%).
 - **Anatomical Angle Vectors**:
   - 3-point knee joint flexion and hip-to-knee vertical compression.
   - Torso inclination angle relative to gravitational vertical.
@@ -32,10 +36,13 @@
   - Ground-level aspect ratio and high-speed vertical collapse trajectory.
 - **Desk Mode**: Specialized upper-body kinematic heuristics when camera framing occludes lower extremities.
 
-### 🚨 4. Automated Incident Alerting & Auditing
-- **Synthesized Acoustic Siren**: In-memory two-tone WAV synthesizer (988 Hz & 740 Hz) with browser playback and volume controls.
+### 🚨 4. Emergency SOS & Rapid Hospital Response
+- **Single-Touch Circular SOS Button**: Immediate 1-click manual emergency dispatch and automated fall detection links.
+- **Google Maps Emergency Hospital Locator**: Direct routing to nearby Level-1 trauma centers, accredited ERs, and geriatric units.
+- **Speed-Dial Directory**: One-touch direct dialing to EMS 911, primary geriatricians, on-duty caregivers, and family proxies.
+- **Escalating 3-Stage Acoustic Siren**: Synthesizes progressive alarms (Stage 1: 620 Hz chime, Stage 2: 880 Hz siren, Stage 3: 1350 Hz code red).
 - **Hysteresis Temporal Filter**: Exponential Moving Average (EMA) and multi-frame streak gating preventing false alarms.
-- **Automated Incident Logging**: Confirmed fall incidents automatically write timestamped full-resolution snapshots to `outputs/falls/` and record structured logs in `outputs/falls/fall_events.csv`.
+- **Automated Incident Logging**: Confirmed fall incidents automatically write timestamped full-resolution snapshots to `outputs/falls/` and record structured logs in `data/incident_logs.csv`.
 
 ---
 

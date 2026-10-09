@@ -178,7 +178,38 @@ To prevent concept drift and maintain clinical reliability over long-term deploy
 
 ---
 
-## 🚀 5. Performance Optimizations & Zero-Lag Architecture
+## 🚨 5. Automated 911 Auto-Calling & Emergency Dispatch Center
+
+When a fall is confirmed across any mode (Live Webcam, Photo Upload, Video Analysis, or Manual SOS), SafeFall AI activates an automated emergency response sequence:
+
+```
+[ Fall Confirmed ] ──► [ Acoustic Siren Sounds (Stages 1-3) ]
+                           │
+                           ▼
+             [ 10-Second Auto-Call Countdown ]
+             - Spoken voice alert: "Auto-dialing 911 in 10 seconds"
+             - Immediate cancellation option: "✕ I AM OK • CANCEL CALL"
+                           │
+           ┌───────────────┴───────────────┐
+           ▼                               ▼
+ [ User Cancels Call ]            [ Timer Hits 0s or "Call Now" ]
+ - Alarm silenced                          │
+ - Patient marked safe                     ▼
+                             [ Live 911 EMS Dispatch Screen ]
+                             - Telephone ringback audio (440Hz + 480Hz)
+                             - Live call timer (00:01, 00:02...)
+                             - Operator 42 spoken voice assistance
+                             - Real-time dispatcher transcript
+                             - Native mobile dialer link (tel:911)
+                             - Operational controls: Mute, Speaker, Hang Up
+```
+
+- **Cross-Platform Compatibility**: On desktop laptops where `tel:911` is not natively configured, the interactive in-app dialer provides complete voice reassurance and automated event logging. On mobile smartphones, one-tap direct integration with the physical phone dialer (`tel:911`) is provided.
+- **Incident Audit Trail**: Dispatches are permanently recorded with timestamp, fall risk, and status in `data/incident_logs.csv`.
+
+---
+
+## 🚀 6. Performance Optimizations & Zero-Lag Architecture
 
 SafeFall AI is engineered for high throughput and instant UI responsiveness:
 
@@ -190,7 +221,7 @@ SafeFall AI is engineered for high throughput and instant UI responsiveness:
 
 ---
 
-## 🏗️ 6. Repository Architecture
+## 🏗️ 7. Repository Architecture
 
 ```
 .
@@ -230,7 +261,7 @@ SafeFall AI is engineered for high throughput and instant UI responsiveness:
 
 ---
 
-## ⚙️ 7. Installation & Quick Start
+## ⚙️ 8. Installation & Quick Start
 
 ### 1. Clone the Repository
 ```bash

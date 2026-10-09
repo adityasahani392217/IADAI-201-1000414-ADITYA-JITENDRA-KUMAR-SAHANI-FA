@@ -106,7 +106,7 @@ def render_diagnostic_report(
         )
         if st.session_state.get("setting_alarm_enabled", True):
             components.html(render_escalating_alarm_synthesizer(fall_dur, st.session_state.get("setting_alarm_volume", 0.8), is_active=True), height=115)
-            components.html(render_sos_countdown_html(15, fall_dur), height=140)
+            components.html(render_sos_countdown_html(10, fall_dur), height=490)
 
 
 
@@ -507,6 +507,7 @@ def render_live_monitor_page(
         )
 
         alert_box_slot = st.empty()
+        autocall_slot = st.empty()
         activity_cards_slot = st.empty()
 
     with info_col:
@@ -515,6 +516,8 @@ def render_live_monitor_page(
 
         if st.button("Silence Alarm (30s)", key="btn_silence_alarm", use_container_width=True):
             st.session_state["silence_alarm_until"] = time.time() + 30.0
+            st.session_state["live_sos_mounted"] = False
+            autocall_slot.empty()
             st.toast("Alarm silenced for 30 seconds", icon="🔕")
 
     alarm_slot = st.empty()
@@ -573,8 +576,15 @@ def render_live_monitor_page(
                         render_fall_alert_card(fall_p, datetime.now().strftime("%H:%M:%S"), fall_duration=fall_duration),
                         unsafe_allow_html=True
                     )
+                    if not st.session_state.get("live_sos_mounted", False) and not is_silenced:
+                        st.session_state["live_sos_mounted"] = True
+                        with autocall_slot:
+                            components.html(render_sos_countdown_html(10, fall_duration), height=490)
                 else:
                     alert_box_slot.empty()
+                    if st.session_state.get("live_sos_mounted", False):
+                        st.session_state["live_sos_mounted"] = False
+                        autocall_slot.empty()
 
             telemetry_slot.markdown(
                 f'<div class="card">'
@@ -652,6 +662,7 @@ def render_live_monitor_page(
             unsafe_allow_html=True
         )
         alert_box_slot.empty()
+        autocall_slot.empty()
         alarm_slot.empty()
 
 
@@ -1374,26 +1385,52 @@ def render_emergency_sos_page(
     )
 
     # Audition & Silence Controls directly under the circle
-    btn_col1, btn_col2, btn_col3 = st.columns([1, 1.4, 1])
+    btn_col1, btn_col2, btn_col3 = st.columns([0.6, 2.8, 0.6])
     with btn_col2:
-        test_c1, test_c2 = st.columns(2)
+        test_c1, test_c2, test_c3 = st.columns(3)
         with test_c1:
+            if st.button("📞 911 Auto-Call & Dispatch", key="btn_test_autocall", use_container_width=True):
+                st.session_state["sos_call_screen_active"] = True
+                st.session_state["sos_test_alarm_active"] = True
+                alert_mgr.trigger_fall_alert(
+                    fall_confidence=0.99,
+                    patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Resident"),
+                    room_name="Active Room 01",
+                    sensor_metadata={"simulated": True, "mode": "Manual SOS 911 Auto-Call"}
+                )
+                st.toast("🚨 Initiating 911 EMS Medical Dispatch...", icon="📞")
+        with test_c2:
             if st.button("🚨 Test Alert Siren", key="btn_test_siren", use_container_width=True):
                 st.session_state["sos_test_alarm_active"] = True
-                evt = alert_mgr.trigger_fall_alert(
+                st.session_state["sos_call_screen_active"] = False
+                alert_mgr.trigger_fall_alert(
                     fall_confidence=0.98,
                     patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Resident"),
                     room_name="Active Room 01",
-                    sensor_metadata={"simulated": True, "mode": "Manual SOS Test"}
+                    sensor_metadata={"simulated": True, "mode": "Manual SOS Siren Test"}
                 )
-                st.toast("🚨 Emergency SOS Test Activated!", icon="🚨")
-        with test_c2:
+                st.toast("🚨 Emergency Siren Activated!", icon="🚨")
+        with test_c3:
             if st.button("⏹️ Silence / Reset", key="btn_silence_siren", use_container_width=True):
                 st.session_state["sos_test_alarm_active"] = False
-                st.toast("Alarm silenced.", icon="🔕")
+                st.session_state["sos_call_screen_active"] = False
+                st.toast("Alarm and dispatch reset.", icon="🔕")
                 st.rerun()
 
-    if st.session_state.get("sos_test_alarm_active", False):
+    call_slot = st.empty()
+    if st.session_state.get("sos_call_screen_active", False):
+        with call_slot:
+            components.html(
+                render_simulated_calling_screen_html(
+                    patient_name=st.session_state.get("active_user", {}).get("name", "Elderly Resident"),
+                    incident_id="FALL-911-DIRECT",
+                    room_name="Active Room 01",
+                    is_active=True
+                ),
+                height=490
+            )
+
+    if st.session_state.get("sos_test_alarm_active", False) and not st.session_state.get("sos_call_screen_active", False):
         with alarm_slot:
             components.html(render_escalating_alarm_synthesizer(8.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
         st.success("🚨 **Alert Active**: Emergency acoustic alarm is sounding. Click 'Silence / Reset' above to stop.")

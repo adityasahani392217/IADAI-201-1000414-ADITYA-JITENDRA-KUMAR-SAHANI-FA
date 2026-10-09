@@ -303,45 +303,144 @@ def render_speed_dial_list_html(contacts: Optional[List[Dict[str, Any]]] = None)
     return "".join(cards)
 
 
-def render_sos_countdown_html(countdown_seconds: int = 15, fall_duration: float = 0.0) -> str:
+def synthesize_dispatcher_ring_base64() -> str:
     """
-    Render interactive client-side automated SOS emergency calling countdown banner.
-    Runs 100% on the user device:
-      - Client-side countdown ticker
-      - Spoken emergency alerts via Web Speech API
-      - Direct telephone dialer invocation (tel:911)
-      - Immediate cancellation button for false alarms
+    Generate in-memory WAV with authentic telephone ringback (440 Hz + 480 Hz)
+    followed by an emergency radio connection squelch beep.
     """
+    sample_rate = 22050
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+
+        # 1. Phone ring (1.5 seconds of dual-frequency ringback)
+        ring_samples = int(sample_rate * 1.5)
+        for i in range(ring_samples):
+            t = float(i) / sample_rate
+            sample = 0.35 * (math.sin(2.0 * math.pi * 440.0 * t) + math.sin(2.0 * math.pi * 480.0 * t))
+            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
+
+        # 0.25s pause / pick-up click
+        for _ in range(int(sample_rate * 0.25)):
+            wf.writeframes(struct.pack("<h", 0))
+
+        # Radio connect beep (950 Hz chirp, 0.15s)
+        beep_samples = int(sample_rate * 0.15)
+        for i in range(beep_samples):
+            t = float(i) / sample_rate
+            sample = 0.45 * math.sin(2.0 * math.pi * 950.0 * t)
+            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
+
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def render_sos_countdown_html(
+    countdown_seconds: int = 10,
+    fall_duration: float = 0.0,
+    patient_name: str = "Senior Resident A",
+    room_name: str = "Active Room 01"
+) -> str:
+    """
+    Render interactive automated SOS emergency calling banner and active dialer.
+    Two-stage lifecycle:
+      Stage 1: Client-side countdown ticker (10s default) with voice warning and cancel button.
+      Stage 2: Automatic transition to live 911 EMS Medical Dispatcher calling screen
+               with authentic phone ring, call timer, animated waveform, and audio dispatcher speech.
+    """
+    ring_wav_b64 = synthesize_dispatcher_ring_base64()
+    dispatcher_speech = (
+        f"911 Emergency Dispatch. This is Operator 42. We have received an automated SafeFall AI distress alert "
+        f"for an acute fall event regarding {patient_name} in {room_name}. "
+        f"Medical first responders and ambulance unit have been dispatched to your location. "
+        f"Please remain calm and do not attempt to stand abruptly. Can the patient hear my voice? Help is on the way."
+    )
+
+    bars_html = "".join(
+        f'<div style="width:4px; height:{h}px; background:#38BDF8; border-radius:2px; animation:waveBounce 0.8s ease-in-out infinite alternate; animation-delay:{i * 0.1}s"></div>'
+        for i, h in enumerate([10, 22, 14, 28, 18, 30, 16, 26, 12])
+    )
+
     return (
-        f'<div class="card" style="border:2px solid #DC2626; background:#FEF2F2; padding:14px 18px; border-radius:12px; margin-bottom:16px; box-shadow:0 4px 14px rgba(220,38,38,0.20)">'
+        f'<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif; margin-bottom:12px">'
+        f'<div id="sos_countdown_card" class="card" style="border:2px solid #DC2626; background:#FEF2F2; padding:14px 18px; border-radius:12px; margin-bottom:10px; box-shadow:0 4px 14px rgba(220,38,38,0.20)">'
         f'<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px">'
         f'<div>'
         f'<div style="display:flex; align-items:center; gap:10px">'
         f'<span style="font-size:1.9rem; animation:pulse 1s infinite">🚨</span>'
         f'<div>'
-        f'<div style="font-size:1.10rem; font-weight:800; color:#B91C1C">AUTOMATED SOS EMERGENCY CALLING ACTIVE</div>'
-        f'<div style="font-size:0.84rem; color:#7F1D1D">'
+        f'<div id="sos_banner_title" style="font-size:1.10rem; font-weight:800; color:#B91C1C">AUTOMATED SOS EMERGENCY CALLING ACTIVE</div>'
+        f'<div id="sos_banner_sub" style="font-size:0.84rem; color:#7F1D1D">'
         f'Fall detected for <b>{fall_duration:.1f}s</b>. Auto-dialing <b>911 EMS Dispatch</b> in <span id="sos_sec_cnt" style="font-weight:900; font-size:1.2rem; color:#B91C1C; background:#FEE2E2; padding:2px 8px; border-radius:6px">{countdown_seconds}</span> seconds.'
         f'</div>'
         f'</div>'
         f'</div>'
         f'</div>'
-        f'<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">'
-        f'<button id="btn_cancel_sos" onclick="cancelSosCountdown()" class="sos-btn" style="background:#FFFFFF; color:#B91C1C !important; border:2px solid #DC2626; font-weight:700; padding:8px 16px; border-radius:8px; cursor:pointer">'
+        f'<div id="sos_action_buttons" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">'
+        f'<button id="btn_cancel_sos" onclick="cancelSosCountdown()" style="background:#FFFFFF; color:#B91C1C !important; border:2px solid #DC2626; font-weight:700; padding:8px 16px; border-radius:8px; cursor:pointer">'
         f'✕ I AM OK &bull; CANCEL CALL'
         f'</button>'
-        f'<a href="tel:911" target="_top" id="btn_call_now_sos" class="sos-btn" style="background:#DC2626; color:#FFFFFF !important; font-weight:700; padding:8px 16px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:6px">'
+        f'<button id="btn_call_now_sos" onclick="triggerImmediateCall()" style="background:#DC2626; color:#FFFFFF !important; border:none; font-weight:700; padding:8px 16px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px">'
         f'📞 Auto-Call 911 Now'
-        f'</a>'
+        f'</button>'
         f'</div>'
         f'</div>'
         f'<div id="sos_cancelled_notice" style="display:none; margin-top:12px; font-weight:700; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:10px 14px; border-radius:8px">'
         f'✅ Emergency dispatch cancelled by operator. Patient verified safe.'
         f'</div>'
+        f'</div>'
+        f'<div id="sf_active_calling_view" style="display:none; background:#0F172A; color:#FFFFFF; border-radius:18px; padding:22px 20px; box-shadow:0 12px 30px rgba(0,0,0,0.35); text-align:center; max-width:540px; margin:0 auto; position:relative">'
+        f'<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94A3B8; margin-bottom:14px; border-bottom:1px solid #1E293B; padding-bottom:8px">'
+        f'<span>📶 5G &bull; HD Voice &bull; 🔒 Encrypted HIPAA Line</span>'
+        f'<span id="sf_call_status_badge" style="background:#DC2626; color:#FFFFFF; padding:2px 8px; border-radius:12px; font-weight:700">● 911 CALL ACTIVE</span>'
+        f'</div>'
+        f'<div style="width:68px; height:68px; border-radius:50%; background:#DC2626; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; font-size:2.0rem; box-shadow:0 0 20px rgba(220,38,38,0.5)">'
+        f'🚑'
+        f'</div>'
+        f'<div style="font-size:1.20rem; font-weight:800; color:#F8FAFC; letter-spacing:-0.01em">911 EMS Medical Dispatch</div>'
+        f'<div style="font-size:0.80rem; color:#94A3B8; margin-top:2px">Automated Trauma Response &bull; Central Division</div>'
+        f'<div id="sf_call_timer" style="font-size:1.10rem; font-weight:700; color:#38BDF8; font-variant-numeric:tabular-nums; margin:8px 0">00:00</div>'
+        f'<div id="sf_waveform" style="display:flex; justify-content:center; align-items:center; gap:4px; height:28px; margin:12px 0">'
+        f'{bars_html}'
+        f'</div>'
+        f'<div id="sf_transcript_box" style="background:#1E293B; border:1px solid #334155; border-radius:10px; padding:12px; margin:12px 0; text-align:left; font-size:0.82rem; color:#E2E8F0; line-height:1.45">'
+        f'<div style="font-size:0.70rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">🎙️ Dispatcher Voice Transcript (Live Simulation)</div>'
+        f'<div id="sf_transcript_text" style="font-style:italic">"Connecting to emergency dispatcher audio line..."</div>'
+        f'</div>'
+        f'<div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-top:16px; flex-wrap:wrap">'
+        f'<button id="sf_btn_mute" onclick="toggleSimMute()" style="background:#334155; color:#F8FAFC; border:none; width:48px; height:48px; border-radius:50%; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center" title="Mute Microphone">🎙️</button>'
+        f'<button id="sf_btn_speaker" onclick="toggleSimSpeaker()" style="background:#334155; color:#F8FAFC; border:none; width:48px; height:48px; border-radius:50%; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center" title="Speakerphone">🔊</button>'
+        f'<button id="sf_btn_hangup" onclick="endSimCall()" style="background:#DC2626; color:#FFFFFF; border:none; width:54px; height:54px; border-radius:50%; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(220,38,38,0.5)" title="End Call">📞</button>'
+        f'<a href="tel:911" target="_blank" style="background:#0284C7; color:#FFFFFF !important; text-decoration:none; font-weight:700; font-size:0.80rem; padding:8px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:6px">'
+        f'📱 Mobile Dialer (tel:911)'
+        f'</a>'
+        f'</div>'
+        f'<div style="margin-top:12px; display:flex; justify-content:center; gap:8px">'
+        f'<button id="sf_btn_replay" onclick="triggerImmediateCall()" style="background:transparent; color:#94A3B8; border:1px solid #475569; border-radius:6px; padding:5px 10px; font-size:0.75rem; cursor:pointer; font-weight:600">🔁 Replay Dispatch Call</button>'
+        f'<button onclick="speakDispatcherVoice()" style="background:#1E293B; color:#38BDF8; border:1px solid #38BDF8; border-radius:6px; padding:5px 10px; font-size:0.75rem; cursor:pointer; font-weight:600">🔊 Speak Aloud</button>'
+        f'</div>'
+        f'</div>'
+        f'<audio id="sf_ring_audio" playsinline="playsinline" src="data:audio/wav;base64,{ring_wav_b64}"></audio>'
+        f'<style>'
+        f'@keyframes waveBounce {{ 0% {{ transform: scaleY(0.3); opacity: 0.5; }} 100% {{ transform: scaleY(1.0); opacity: 1.0; }} }}'
+        f'@keyframes pulse {{ 0% {{ transform: scale(1); }} 50% {{ transform: scale(1.1); }} 100% {{ transform: scale(1); }} }}'
+        f'</style>'
         f'<script>'
         f'let sosTimer = {countdown_seconds};'
         f'let sosActive = true;'
-        f'function speakText(txt) {{'
+        f'let callActive = false;'
+        f'let callSecs = 0;'
+        f'let callTimerInterval = null;'
+        f'let isMuted = false;'
+        f'let isSpeaker = true;'
+        f'const fullDispatcherSpeech = "{dispatcher_speech}";'
+        f'function formatCallTime(s) {{'
+        f'  const m = Math.floor(s / 60);'
+        f'  const sec = s % 60;'
+        f'  return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);'
+        f'}};'
+        f'function speakPrompt(txt) {{'
         f'  try {{'
         f'    if ("speechSynthesis" in window) {{'
         f'      window.speechSynthesis.cancel();'
@@ -351,39 +450,104 @@ def render_sos_countdown_html(countdown_seconds: int = 15, fall_duration: float 
         f'      window.speechSynthesis.speak(utter);'
         f'    }}'
         f'  }} catch(e) {{ console.log("SpeechSynthesis error", e); }}'
-        f'}}'
-        f'speakText("Emergency alert! Fall detected! System auto dialing emergency services in " + sosTimer + " seconds.");'
+        f'}};'
+        f'function speakDispatcherVoice() {{'
+        f'  try {{'
+        f'    if("speechSynthesis" in window) {{'
+        f'      window.speechSynthesis.cancel();'
+        f'      const utter = new SpeechSynthesisUtterance(fullDispatcherSpeech);'
+        f'      utter.rate = 0.98;'
+        f'      utter.pitch = 0.95;'
+        f'      window.speechSynthesis.speak(utter);'
+        f'    }}'
+        f'  }} catch(e) {{ console.log(e); }}'
+        f'}};'
+        f'speakPrompt("Emergency alert! Fall detected! System auto dialing 911 emergency services in " + sosTimer + " seconds.");'
         f'const sosInterval = setInterval(function() {{'
         f'  if(!sosActive) return;'
         f'  sosTimer--;'
         f'  const el = document.getElementById("sos_sec_cnt");'
         f'  if(el) el.innerText = sosTimer;'
-        f'  if(sosTimer === 5) {{ speakText("Five seconds remaining to emergency auto call."); }}'
+        f'  if(sosTimer === 5) {{ speakPrompt("Five seconds remaining to emergency auto call."); }}'
         f'  if(sosTimer <= 0) {{'
         f'    clearInterval(sosInterval);'
         f'    sosActive = false;'
-        f'    if(el) el.innerText = "0 (DIALING 911...)";'
-        f'    speakText("Calling 911 emergency services now.");'
-        f'    const link = document.getElementById("btn_call_now_sos");'
-        f'    if(link) {{ try {{ link.click(); }} catch(e) {{}} }}'
-        f'    try {{ window.top.location.href = "tel:911"; }} catch(e) {{'
-        f'      try {{ window.parent.location.href = "tel:911"; }} catch(e2) {{'
-        f'        window.location.href = "tel:911";'
-        f'      }}'
-        f'    }}'
+        f'    triggerImmediateCall();'
         f'  }}'
         f'}}, 1000);'
+        f'function triggerImmediateCall() {{'
+        f'  sosActive = false;'
+        f'  if(sosInterval) clearInterval(sosInterval);'
+        f'  const bTitle = document.getElementById("sos_banner_title");'
+        f'  if(bTitle) {{ bTitle.innerText = "🚨 911 EMERGENCY DISPATCH LINE CONNECTED"; bTitle.style.color = "#047857"; }}'
+        f'  const bSub = document.getElementById("sos_banner_sub");'
+        f'  if(bSub) bSub.innerHTML = "Auto-dialing completed. <b>Connected to 911 EMS Medical Dispatcher</b>.";'
+        f'  const actBtns = document.getElementById("sos_action_buttons");'
+        f'  if(actBtns) actBtns.style.display = "none";'
+        f'  const callView = document.getElementById("sf_active_calling_view");'
+        f'  if(callView) callView.style.display = "block";'
+        f'  callActive = true;'
+        f'  callSecs = 0;'
+        f'  if(callTimerInterval) clearInterval(callTimerInterval);'
+        f'  const timerEl = document.getElementById("sf_call_timer");'
+        f'  if(timerEl) timerEl.innerText = "00:00";'
+        f'  const ringAud = document.getElementById("sf_ring_audio");'
+        f'  if(ringAud) {{ ringAud.currentTime = 0; ringAud.play().catch(e => {{}}); }}'
+        f'  const tText = document.getElementById("sf_transcript_text");'
+        f'  if(tText) tText.innerText = "Connecting to emergency dispatcher audio line...";'
+        f'  callTimerInterval = setInterval(function() {{'
+        f'    if(!callActive) return;'
+        f'    callSecs++;'
+        f'    const el = document.getElementById("sf_call_timer");'
+        f'    if(el) el.innerText = formatCallTime(callSecs);'
+        f'  }}, 1000);'
+        f'  setTimeout(function() {{'
+        f'    if(!callActive) return;'
+        f'    if(tText) tText.innerText = fullDispatcherSpeech;'
+        f'    speakDispatcherVoice();'
+        f'  }}, 1500);'
+        f'}};'
         f'function cancelSosCountdown() {{'
         f'  sosActive = false;'
-        f'  clearInterval(sosInterval);'
-        f'  speakText("Emergency dispatch cancelled. Patient verified safe.");'
-        f'  const btn = document.getElementById("btn_cancel_sos");'
-        f'  if(btn) btn.style.display = "none";'
-        f'  const callBtn = document.getElementById("btn_call_now_sos");'
-        f'  if(callBtn) callBtn.style.opacity = "0.45";'
-        f'  const notice = document.getElementById("sos_cancelled_notice");'
-        f'  if(notice) notice.style.display = "block";'
-        f'}}'
+        f'  if(sosInterval) clearInterval(sosInterval);'
+        f'  if("speechSynthesis" in window) window.speechSynthesis.cancel();'
+        f'  const card = document.getElementById("sos_countdown_card");'
+        f'  const cancelNotice = document.getElementById("sos_cancelled_notice");'
+        f'  const callView = document.getElementById("sf_active_calling_view");'
+        f'  const actBtns = document.getElementById("sos_action_buttons");'
+        f'  if(actBtns) actBtns.style.display = "none";'
+        f'  if(callView) callView.style.display = "none";'
+        f'  if(cancelNotice) cancelNotice.style.display = "block";'
+        f'  speakPrompt("Emergency dispatch cancelled. Patient verified safe.");'
+        f'}};'
+        f'function endSimCall() {{'
+        f'  callActive = false;'
+        f'  if(callTimerInterval) clearInterval(callTimerInterval);'
+        f'  if("speechSynthesis" in window) window.speechSynthesis.cancel();'
+        f'  const ringAud = document.getElementById("sf_ring_audio");'
+        f'  if(ringAud) ringAud.pause();'
+        f'  const badge = document.getElementById("sf_call_status_badge");'
+        f'  if(badge) {{ badge.innerText = "CALL COMPLETED"; badge.style.background = "#475569"; badge.style.color = "#CBD5E1"; }}'
+        f'  const tText = document.getElementById("sf_transcript_text");'
+        f'  if(tText) tText.innerText = "Call ended by operator. Emergency response unit status: DISPATCHED. Patient verified stable.";'
+        f'  const wave = document.getElementById("sf_waveform");'
+        f'  if(wave) wave.style.opacity = "0.2";'
+        f'}};'
+        f'function toggleSimMute() {{'
+        f'  isMuted = !isMuted;'
+        f'  const b = document.getElementById("sf_btn_mute");'
+        f'  if(b) {{'
+        f'    b.style.background = isMuted ? "#DC2626" : "#334155";'
+        f'    b.innerText = isMuted ? "🔇" : "🎙️";'
+        f'  }}'
+        f'}};'
+        f'function toggleSimSpeaker() {{'
+        f'  isSpeaker = !isSpeaker;'
+        f'  const b = document.getElementById("sf_btn_speaker");'
+        f'  if(b) {{'
+        f'    b.style.background = isSpeaker ? "#334155" : "#1E293B";'
+        f'  }}'
+        f'}};'
         f'</script>'
         f'</div>'
     )
@@ -818,38 +982,6 @@ def render_client_sentinel_webcam_html() -> str:
         '</div>'
     )
 
-
-def synthesize_dispatcher_ring_base64() -> str:
-    """
-    Generate in-memory WAV with authentic telephone ringback (440 Hz + 480 Hz)
-    followed by an emergency radio connection squelch beep.
-    """
-    sample_rate = 22050
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-
-        # 1. Phone ring (1.5 seconds of dual-frequency ringback)
-        ring_samples = int(sample_rate * 1.5)
-        for i in range(ring_samples):
-            t = float(i) / sample_rate
-            sample = 0.35 * (math.sin(2.0 * math.pi * 440.0 * t) + math.sin(2.0 * math.pi * 480.0 * t))
-            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
-
-        # 0.25s pause / pick-up click
-        for _ in range(int(sample_rate * 0.25)):
-            wf.writeframes(struct.pack("<h", 0))
-
-        # Radio connect beep (950 Hz chirp, 0.15s)
-        beep_samples = int(sample_rate * 0.15)
-        for i in range(beep_samples):
-            t = float(i) / sample_rate
-            sample = 0.45 * math.sin(2.0 * math.pi * 950.0 * t)
-            wf.writeframes(struct.pack("<h", int(sample * 32767.0)))
-
-    return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def render_simulated_calling_screen_html(

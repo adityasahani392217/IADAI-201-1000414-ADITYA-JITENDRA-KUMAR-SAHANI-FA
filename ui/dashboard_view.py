@@ -180,11 +180,13 @@ def render_diagnostic_report(
         "inference_engine": report["engine"],
         "timestamp": datetime.now().isoformat(timespec="seconds")
     }
+    unique_dl_key = f"dl_rep_{abs(hash(source_name + verdict + str(conf)))}"
     st.download_button(
         "Download Clinical Telemetry (JSON)",
         json.dumps(export_payload, indent=2),
         file_name="safefall_clinical_report.json",
-        mime="application/json"
+        mime="application/json",
+        key=unique_dl_key
     )
 
 
@@ -882,66 +884,35 @@ def render_model_insights_page(
 
     st.write("")
 
-    # Model Retraining Hub
-    st.markdown("#### Model Retraining & Continuous Learning Hub")
-    retrain_col1, retrain_col2 = st.columns([1.6, 1.0])
-    with retrain_col1:
-        st.markdown(
-            '<div class="card">'
-            '<h5 style="font-size:0.95rem; margin-bottom:4px">Full DeepNet Retraining Pipeline</h5>'
-            '<p style="font-size:0.84rem; color:var(--text-secondary); line-height:1.5">'
-            'Re-executes 45-epoch PyTorch training with balanced class weighting, AdamW optimizer, '
-            'and learning rate scheduling across 12,629 training samples. Updates model weights, feature scaler, '
-            'and regenerates unseen test set (2,707 samples) evaluation metrics.'
-            '</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        if st.button("🚀 Trigger Full Pipeline Retraining", key="btn_trigger_retrain", use_container_width=True):
-            with st.spinner("Retraining PyTorch DeepNet and Random Forest baseline (45 epochs)..."):
-                try:
-                    from training.train_model import train_pipeline
-                    from training.evaluate_model import evaluate_pipeline
-                    train_pipeline(str(coordinator.root_dir))
-                    evaluate_pipeline(str(coordinator.root_dir))
-                    st.success("✅ Model retraining and test set evaluation completed successfully! Metrics and charts updated.")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as ex:
-                    st.error(f"Retraining error: {ex}")
-
-    with retrain_col2:
-        st.markdown(
-            '<div class="card">'
-            '<h5 style="font-size:0.95rem; margin-bottom:4px">Feedback Active Learning</h5>'
-            '<p style="font-size:0.84rem; color:var(--text-secondary); line-height:1.5">'
-            'Quick incremental fine-tuning (15 epochs) using real-time user feedback data to adapt to specific room angles.'
-            '</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        if st.button("⚡ Fine-Tune with Feedback", key="btn_feedback_retrain", use_container_width=True):
-            with st.spinner("Fine-tuning model weights with user feedback data..."):
-                try:
-                    from utils.feedback_trainer import retrain_model_with_feedback
-                    fb_res = retrain_model_with_feedback(epochs=15)
-                    st.success(f"✅ Fine-tuning completed! Samples used: {fb_res.get('feedback_samples_used', 0)}, RF Acc: {fb_res.get('rf_accuracy', 0)}%")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as ex:
-                    st.error(f"Fine-tuning error: {ex}")
-
     # Architecture Overview
+    st.markdown("#### FA-2 Neural Kinematics Architecture")
     st.markdown(
-        '<div class="card" style="margin-top:16px">'
-        '<h4 style="font-size:1.05rem; margin-bottom:8px">FA-2 Neural Kinematics Architecture</h4>'
-        '<p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6">'
-        '&bull; <b>Pose Landmarking:</b> YOLOv8-Pose extracts 17 COCO skeletal keypoints per frame at 30 FPS.<br>'
-        '&bull; <b>Spatial Normalization:</b> Coordinates are centered relative to the mid-hip landmark and scaled by torso length.<br>'
-        '&bull; <b>Feature Dimension:</b> 51 normalized geometric features per frame (17 keypoints &times; (x, y, confidence)).<br>'
-        '&bull; <b>Temporal Windowing:</b> Sliding temporal buffer of 30 frames fed to a Bidirectional LSTM (BiLSTM) network with dropout.<br>'
-        '&bull; <b>Fallback Kinematic Rules:</b> Real-time bounding box aspect ratio, torso inclination angle, and centroid descent rate filter out false positives.'
-        '</p>'
+        '<div class="card">'
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:14px">'
+        '<div style="background:rgba(94,139,122,0.08); border:1px solid rgba(94,139,122,0.25); border-radius:10px; padding:14px">'
+        '<div style="font-size:0.75rem; font-weight:700; color:var(--accent); text-transform:uppercase">STAGE 1: VISION</div>'
+        '<div style="font-weight:700; font-size:1.0rem; margin:4px 0">YOLOv8 Pose</div>'
+        '<div style="font-size:0.82rem; color:var(--text-secondary)">17 COCO skeletal landmarks extracted per frame at 30 FPS.</div>'
+        '</div>'
+        '<div style="background:rgba(142,168,195,0.10); border:1px solid rgba(142,168,195,0.30); border-radius:10px; padding:14px">'
+        '<div style="font-size:0.75rem; font-weight:700; color:#3B82F6; text-transform:uppercase">STAGE 2: NORMALIZATION</div>'
+        '<div style="font-weight:700; font-size:1.0rem; margin:4px 0">Geometric Centering</div>'
+        '<div style="font-size:0.82rem; color:var(--text-secondary)">51 normalized coordinates invariant to camera distance and body size.</div>'
+        '</div>'
+        '<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:14px">'
+        '<div style="font-size:0.75rem; font-weight:700; color:#059669; text-transform:uppercase">STAGE 3: TEMPORAL AI</div>'
+        '<div style="font-weight:700; font-size:1.0rem; margin:4px 0">Deep BiLSTM</div>'
+        '<div style="font-size:0.82rem; color:var(--text-secondary)">30-frame temporal recurrent window captures descent velocity and motion dynamics.</div>'
+        '</div>'
+        '<div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:10px; padding:14px">'
+        '<div style="font-size:0.75rem; font-weight:700; color:#D97706; text-transform:uppercase">STAGE 4: ARBITRATION</div>'
+        '<div style="font-weight:700; font-size:1.0rem; margin:4px 0">Kinematic Rules</div>'
+        '<div style="font-size:0.82rem; color:var(--text-secondary)">Aspect ratio, torso angle, and EWMA filter out false alarms with 0ms cold-start latency.</div>'
+        '</div>'
+        '</div>'
+        '<div style="font-size:0.84rem; color:var(--text-secondary); line-height:1.6; border-top:1px solid var(--border-subtle); padding-top:10px">'
+        'SafeFall AI achieves an optimal synergy between high-speed spatial detection (YOLOv8 Pose), deep sequential reasoning (BiLSTM), and physiological kinematics to protect seniors without invasive cameras.'
+        '</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -1337,14 +1308,14 @@ def render_emergency_sos_page(
 
     # Top Status Bar
     status_bar = (
-        '<div style="display:flex; justify-content:space-between; align-items:center; background:#FFF5F5; border:1px solid #FECACA; border-radius:14px; padding:14px 20px; margin-bottom:20px; flex-wrap:wrap; gap:12px">'
-        '<div>'
-        '<div style="font-weight:700; font-size:1.0rem; color:#991B1B">🚨 Emergency Response Protocol: ARMED</div>'
-        '<div style="font-size:0.84rem; color:#7F1D1D">Automated 911 dispatch, caregiver SMS broadcasting, and acoustic siren are linked to live fall telemetry.</div>'
+        '<div class="emergency-armed-bar" style="background:#FFF5F5; border:1px solid #FECACA; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px">'
+        '<div style="flex:1; min-width:240px">'
+        '<div style="font-weight:700; font-size:1.02rem; color:#991B1B">🚨 Emergency Response Protocol: ARMED</div>'
+        '<div style="font-size:0.84rem; color:#7F1D1D; margin-top:2px">Automated 911 dispatch, caregiver SMS broadcasting, and acoustic siren are linked to live fall telemetry.</div>'
         '</div>'
-        '<div style="display:flex; gap:10px">'
-        '<a href="tel:911" class="sos-btn sos-btn-primary">📞 Call 911 Direct</a>'
-        '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps">🏥 Maps: Hospitals Near Me &rarr;</a>'
+        '<div class="btn-group" style="display:flex; gap:10px; flex-wrap:wrap">'
+        '<a href="tel:911" class="sos-btn sos-btn-primary" style="white-space:nowrap">📞 Call 911 Direct</a>'
+        '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="white-space:nowrap">🏥 Maps: Hospitals Near Me &rarr;</a>'
         '</div>'
         '</div>'
     )
@@ -1423,7 +1394,6 @@ def render_emergency_sos_page(
         # Render audio player if active
         if st.session_state.get("alarm_test_active", False):
             components.html(render_escalating_alarm_synthesizer(sim_sec, options.get("alarm_volume", 0.8), is_active=True), height=115)
-
         else:
             st.caption("Click any stage button above to audition the escalating siren in your browser.")
 
@@ -1468,9 +1438,6 @@ def render_emergency_sos_page(
                 height=490
             )
 
-        st.markdown("##### Caregiver &amp; Medical Speed-Dial Directory", unsafe_allow_html=True)
-        st.html(render_speed_dial_list_html())
-
         st.write("")
         if st.button("⚡ Simulate Automated SOS Emergency Dispatch", use_container_width=True):
             st.session_state["show_sim_calling_screen"] = True
@@ -1491,23 +1458,18 @@ def render_emergency_sos_page(
             '<span class="card-title">🏥 Google Maps Emergency Hospital Locator</span>'
             '<span class="badge active"><span class="status-dot"></span>Google Maps API</span>'
             '</div>'
-            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:12px">'
+            '<p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:14px">'
             'Instantly locate accredited emergency rooms, Level-1 trauma centers, and geriatric acute care units. '
             'Direct one-click Google Maps redirects compute fastest EMS driving routes and phone connections.'
             '</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        # Quick action redirection bar
-        st.markdown(
-            '<div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap">'
-            '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="flex:1; justify-content:center">'
+            '<div style="display:flex; gap:10px; flex-wrap:wrap">'
+            '<a href="https://www.google.com/maps/search/emergency+hospital+near+me/" target="_blank" class="sos-btn sos-btn-maps" style="flex:1; justify-content:center; text-align:center">'
             '🧭 Open Nearby Hospitals on Maps &rarr;'
             '</a>'
-            '<a href="https://www.google.com/maps/search/level+1+trauma+center+near+me/" target="_blank" class="sos-btn sos-btn-primary" style="flex:1; justify-content:center">'
+            '<a href="https://www.google.com/maps/search/level+1+trauma+center+near+me/" target="_blank" class="sos-btn sos-btn-primary" style="flex:1; justify-content:center; text-align:center">'
             '🚨 Level-1 Trauma Centers &rarr;'
             '</a>'
+            '</div>'
             '</div>',
             unsafe_allow_html=True
         )
@@ -1523,26 +1485,20 @@ def render_emergency_sos_page(
 
         custom_maps_url = f"https://www.google.com/maps/search/{hosp_query.replace(' ', '+')}+near+me/"
         st.markdown(
-            f'<div style="margin-bottom:14px">'
-            f'<a href="{custom_maps_url}" target="_blank" style="font-size:0.88rem; color:var(--accent); font-weight:600; text-decoration:none">'
+            f'<div style="margin-bottom:18px">'
+            f'<a href="{custom_maps_url}" target="_blank" style="font-size:0.88rem; color:var(--accent); font-weight:700; text-decoration:none">'
             f'🔍 Search Google Maps for "{hosp_query}" &rarr;'
             f'</a>'
             f'</div>',
             unsafe_allow_html=True
         )
 
-        # Accredited Hospitals Directory Cards
-        st.markdown("##### Accredited Emergency Medical Facilities", unsafe_allow_html=True)
-        st.html(render_hospital_locator_cards(DEFAULT_NEARBY_HOSPITALS))
-
         # Recent Emergency Dispatches Table
-        st.write("")
         st.markdown(
             '<div class="card">'
             '<div class="card-header">'
             '<span class="card-title">📋 Emergency Dispatch &amp; Incident Log</span>'
             '<span class="badge">Audit Trail</span>'
-            '</div>'
             '</div>',
             unsafe_allow_html=True
         )
@@ -1554,6 +1510,7 @@ def render_emergency_sos_page(
             st.dataframe(df[cols_to_show], use_container_width=True, hide_index=True)
         else:
             st.info("No emergency dispatches recorded yet in current audit session.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================================================

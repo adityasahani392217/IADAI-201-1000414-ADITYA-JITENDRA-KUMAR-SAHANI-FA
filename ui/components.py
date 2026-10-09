@@ -25,7 +25,7 @@ import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 
-from core.kinematics import ACTIVITY_CLASSES
+from core.kinematics import ACTIVITY_CLASSES, ACTIVITY_DISPLAY_NAMES
 from ui.styles import CLASS_GLYPHS, CLASS_HEX_COLORS
 
 
@@ -122,9 +122,10 @@ def render_horizontal_probability_indicators(probabilities: Any, highlight_fall:
         is_fall_class = (name == "FALL")
         row_color = "#D97878" if (is_fall_class and (val > 0.40 or highlight_fall)) else color
 
+        display_name = ACTIVITY_DISPLAY_NAMES.get(name, name.replace("_", " ").title())
         rows.append(
             f'<div class="prob-row">'
-            f'<div class="prob-label"><span>{glyph}</span> {name.capitalize()}</div>'
+            f'<div class="prob-label"><span>{glyph}</span> {display_name}</div>'
             f'<div class="prob-track"><div class="prob-fill" style="width:{val * 100.0:.1f}%; background:{row_color}"></div></div>'
             f'<div class="prob-pct" style="color:{"#D97878" if (is_fall_class and val > 0.40) else "var(--text-primary)"}">{val:.1%}</div>'
             f'</div>'

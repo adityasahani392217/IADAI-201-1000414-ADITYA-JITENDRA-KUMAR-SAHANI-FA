@@ -467,14 +467,16 @@ padding: 8px 0;
 }}
 
 .prob-label {{
-width: 90px;
-font-size: 0.88rem;
+width: 140px;
+min-width: 130px;
+font-size: 0.85rem;
 font-weight: 600;
 color: var(--text-primary);
 display: flex;
 align-items: center;
 gap: 6px;
 flex: none;
+white-space: nowrap;
 }}
 
 .prob-track {{
@@ -1164,7 +1166,7 @@ align-items: center;
 gap: 5px;
 }}
 
-/* Responsive Breakpoints */
+/* Responsive Breakpoints & Mobile Optimization */
 @media (max-width: 960px) {{
 .activity-grid {{ grid-template-columns: repeat(2, 1fr); }}
 .stat-grid {{ grid-template-columns: repeat(2, 1fr); }}
@@ -1172,13 +1174,31 @@ gap: 5px;
 .top-header-brand h1 {{ font-size: 1.25rem; }}
 }}
 
-@media (max-width: 640px) {{
+@media (max-width: 768px) {{
 .activity-grid {{ grid-template-columns: 1fr; }}
 .stat-grid {{ grid-template-columns: 1fr; }}
-.top-header {{ flex-direction: column; align-items: flex-start; }}
-.top-header-right {{ width: 100%; justify-content: flex-start; }}
-.verdict-box {{ flex-direction: column; align-items: flex-start; }}
+.top-header {{ flex-direction: column; align-items: flex-start; gap: 10px; }}
+.top-header-right {{ width: 100%; justify-content: flex-start; flex-wrap: wrap; }}
+.verdict-box {{ flex-direction: column; align-items: flex-start; gap: 12px; }}
 div[role="radiogroup"] {{ width: 100%; justify-content: space-between; }}
+.emergency-armed-bar {{ flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }}
+.emergency-armed-bar .btn-group {{ flex-direction: column !important; width: 100% !important; }}
+.emergency-armed-bar .sos-btn {{ width: 100% !important; justify-content: center !important; text-align: center; }}
+.sos-btn {{ width: 100% !important; justify-content: center !important; text-align: center; }}
+.prob-row {{ gap: 8px; }}
+.prob-label {{ width: 110px; min-width: 105px; font-size: 0.78rem; }}
+.prob-pct {{ width: 45px; font-size: 0.78rem; }}
+.fall-alert-metrics {{ grid-template-columns: repeat(2, 1fr) !important; }}
+.fall-alert-header {{ flex-direction: column; align-items: flex-start; }}
+.sos-action-bar {{ flex-direction: column; width: 100%; }}
+.hospital-card {{ flex-direction: column; align-items: flex-start; gap: 12px; }}
+.hospital-actions {{ width: 100%; display: flex; flex-direction: column; gap: 8px; }}
+}}
+
+@media (max-width: 480px) {{
+.stat-grid {{ grid-template-columns: 1fr; }}
+.fall-alert-metrics {{ grid-template-columns: 1fr !important; }}
+.card {{ padding: 16px; }}
 }}
 </style>
 """

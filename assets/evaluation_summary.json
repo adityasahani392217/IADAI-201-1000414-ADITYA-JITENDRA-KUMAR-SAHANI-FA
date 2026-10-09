@@ -1,44 +1,44 @@
 {
-    "overall_accuracy": 0.8903,
-    "macro_precision": 0.8593,
-    "macro_recall": 0.8935,
-    "macro_f1": 0.8721,
-    "weighted_f1": 0.8918,
+    "overall_accuracy": 0.8881,
+    "macro_precision": 0.8552,
+    "macro_recall": 0.8917,
+    "macro_f1": 0.8693,
+    "weighted_f1": 0.8897,
     "per_class": {
         "Fall Detected": {
-            "precision": 0.9322,
-            "recall": 0.9576,
-            "f1_score": 0.9447,
+            "precision": 0.9458,
+            "recall": 0.9515,
+            "f1_score": 0.9486,
             "support": 330
         },
         "Off Balance": {
-            "precision": 0.9372,
-            "recall": 0.8654,
-            "f1_score": 0.8999,
+            "precision": 0.9425,
+            "recall": 0.8506,
+            "f1_score": 0.8942,
             "support": 810
         },
         "Normal Activity": {
-            "precision": 0.8491,
-            "recall": 0.9184,
-            "f1_score": 0.8824,
+            "precision": 0.8028,
+            "recall": 0.9306,
+            "f1_score": 0.862,
             "support": 245
         },
         "Sitting": {
-            "precision": 0.9374,
+            "precision": 0.9331,
             "recall": 0.9564,
-            "f1_score": 0.9468,
+            "f1_score": 0.9446,
             "support": 642
         },
         "Standing": {
-            "precision": 0.8807,
-            "recall": 0.7976,
-            "f1_score": 0.8371,
+            "precision": 0.879,
+            "recall": 0.8134,
+            "f1_score": 0.8449,
             "support": 509
         },
         "Walking": {
-            "precision": 0.6192,
-            "recall": 0.8655,
-            "f1_score": 0.722,
+            "precision": 0.6277,
+            "recall": 0.848,
+            "f1_score": 0.7214,
             "support": 171
         }
     }

@@ -240,7 +240,7 @@ class SafeFallPipelineCoordinator:
                 frame_bgr,
                 verbose=False,
                 conf=0.15,
-                imgsz=min(int(img_size), 224),
+                imgsz=min(int(img_size), 192),
                 device=self.yolo_device,
                 classes=[0],
                 max_det=1
@@ -503,10 +503,10 @@ class LiveStreamWorker(VideoProcessorBase):
             "fall_thr": 0.60,
             "need": 2,
             "alpha": 0.65,
-            "stride": 1,
+            "stride": 2,
             "enhance": False,
             "gamma": 1.6,
-            "imgsz": 256,
+            "imgsz": 192,
             "desk_mode": True,
             "force_legacy": False
         }
@@ -614,25 +614,46 @@ class LiveStreamWorker(VideoProcessorBase):
         text_color = (35, 45, 30)  # Deep Charcoal
 
         # Sleek pill badge in top-left
-        badge_w = 260
-        badge_h = 44
-        bx, by = 16, 16
+        if w <= 380:
+            badge_w = min(220, w - 20)
+            badge_h = 34
+            bx, by = 10, 10
+            f_scale = 0.48
+            f_offset_y = 23
+            dot_x, dot_y = bx + 14, by + 17
+            label_x = bx + 26
+            conf_x = bx + badge_w - 44
+            alert_f_scale = 0.65
+            alert_y = by + badge_h + 24
+            border_thick = 4 if is_fall else 3
+        else:
+            badge_w = 260
+            badge_h = 44
+            bx, by = 16, 16
+            f_scale = 0.64
+            f_offset_y = 29
+            dot_x, dot_y = bx + 16, by + 22
+            label_x = bx + 32
+            conf_x = bx + badge_w - 56
+            alert_f_scale = 0.90
+            alert_y = by + badge_h + 36
+            border_thick = 6 if is_fall else 4
 
         # Fast solid rounded pill badge (zero memory allocation)
         cv2.rectangle(frame_bgr, (bx, by), (bx + badge_w, by + badge_h), (250, 252, 250), -1)
         cv2.rectangle(frame_bgr, (bx, by), (bx + badge_w, by + badge_h), badge_border, 1, cv2.LINE_AA)
 
         # Status dot
-        cv2.circle(frame_bgr, (bx + 16, by + 22), 6, dot_color, -1, cv2.LINE_AA)
+        cv2.circle(frame_bgr, (dot_x, dot_y), 5 if w <= 380 else 6, dot_color, -1, cv2.LINE_AA)
 
         # Activity label and confidence
         display_label = label.replace("_", " ").title()
         cv2.putText(
             frame_bgr,
             f"{display_label}",
-            (bx + 32, by + 29),
+            (label_x, by + f_offset_y),
             cv2.FONT_HERSHEY_DUPLEX,
-            0.64,
+            f_scale,
             text_color,
             1,
             cv2.LINE_AA
@@ -641,9 +662,9 @@ class LiveStreamWorker(VideoProcessorBase):
             cv2.putText(
                 frame_bgr,
                 f"{confidence:.0%}",
-                (bx + badge_w - 56, by + 29),
+                (conf_x, by + f_offset_y),
                 cv2.FONT_HERSHEY_DUPLEX,
-                0.65,
+                f_scale,
                 dot_color,
                 1,
                 cv2.LINE_AA
@@ -651,26 +672,26 @@ class LiveStreamWorker(VideoProcessorBase):
 
         if is_fall:
             # Urgent perimeter alert line in Red
-            cv2.rectangle(frame_bgr, (0, 0), (w - 1, h - 1), (45, 45, 230), 6)
+            cv2.rectangle(frame_bgr, (0, 0), (w - 1, h - 1), (45, 45, 230), border_thick)
             cv2.putText(
                 frame_bgr,
                 "🚨 ACUTE FALL DETECTED",
-                (bx + 10, by + badge_h + 36),
+                (bx + 8, alert_y),
                 cv2.FONT_HERSHEY_DUPLEX,
-                0.90,
+                alert_f_scale,
                 (45, 45, 230),
                 2,
                 cv2.LINE_AA
             )
         elif norm_label in ("OFF_BALANCE", "OFF BALANCE"):
             # Caution perimeter alert line in Yellow
-            cv2.rectangle(frame_bgr, (0, 0), (w - 1, h - 1), (30, 200, 245), 4)
+            cv2.rectangle(frame_bgr, (0, 0), (w - 1, h - 1), (30, 200, 245), border_thick)
             cv2.putText(
                 frame_bgr,
                 "⚠️ POSTURE UNSTABLE (OFF BALANCE)",
-                (bx + 10, by + badge_h + 36),
+                (bx + 8, alert_y),
                 cv2.FONT_HERSHEY_DUPLEX,
-                0.80,
+                max(0.55, alert_f_scale - 0.10),
                 (30, 200, 245),
                 2,
                 cv2.LINE_AA
@@ -812,9 +833,9 @@ class LiveStreamWorker(VideoProcessorBase):
         img = frame.to_ndarray(format="bgr24")
         try:
             h, w = img.shape[:2]
-            if w > 480:
-                scale = 480.0 / w
-                img = cv2.resize(img, (480, int(h * scale)), interpolation=cv2.INTER_LINEAR)
+            if w > 360:
+                scale = 360.0 / w
+                img = cv2.resize(img, (360, int(h * scale)), interpolation=cv2.INTER_NEAREST)
             img = self.process_frame(img)
         except Exception as e:
             self._set_telemetry(error=str(e)[:140])

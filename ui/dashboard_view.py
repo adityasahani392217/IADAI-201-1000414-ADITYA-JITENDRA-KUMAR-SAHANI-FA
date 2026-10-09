@@ -422,16 +422,16 @@ def render_live_monitor_page(
                 st.session_state["cam_stream_id"] += 1
                 st.rerun()
 
-        # Direct continuous live stream (high performance, 30 FPS, optimized low latency)
+        # Direct continuous live stream (optimized low latency, 24 FPS, smooth real-time tracking)
         webrtc_context = webrtc_streamer(
             key=f"safefall-live-{st.session_state['cam_stream_id']}",
             mode=WebRtcMode.SENDRECV,
             rtc_configuration=WEBRTC_ICE_SERVERS,
             media_stream_constraints={
                 "video": {
-                    "width": {"ideal": 480, "max": 640},
-                    "height": {"ideal": 360, "max": 480},
-                    "frameRate": {"ideal": 30, "max": 30}
+                    "width": {"ideal": 360, "max": 480},
+                    "height": {"ideal": 270, "max": 360},
+                    "frameRate": {"ideal": 24, "max": 24}
                 },
                 "audio": False
             },
@@ -441,31 +441,6 @@ def render_live_monitor_page(
 
         alert_box_slot = st.empty()
         activity_cards_slot = st.empty()
-
-        # Emergency Dispatch Test Simulator
-        st.write("")
-        if st.button("🚨 Simulate Emergency Dispatch & Siren Test", key="btn_sim_dispatch_test", use_container_width=True):
-            alert_mgr = AlertManager(falls_dir)
-            evt = alert_mgr.trigger_fall_alert(
-                fall_confidence=0.98,
-                patient_id=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
-                room_name="Active Room 01",
-                sensor_metadata={"simulated": True, "mode": "1-Click Healthcare Sentinel Test"}
-            )
-            st.toast("🚨 Emergency SOS Dispatch Broadcast Activated!", icon="🚨")
-            with alarm_slot:
-                components.html(render_escalating_alarm_synthesizer(2.0, options.get("alarm_volume", 0.8), is_active=True), height=115)
-                components.html(render_sos_countdown_html(15, 2.0), height=140)
-                components.html(
-                    render_simulated_calling_screen_html(
-                        patient_name=st.session_state.get("active_user", {}).get("name", "Elderly Patient A"),
-                        incident_id=evt.get('incident_id', 'FALL-TEST'),
-                        room_name="Active Room 01",
-                        is_active=True
-                    ),
-                    height=490
-                )
-            st.success(f"Emergency dispatch logged: Incident ID `{evt.get('incident_id', 'FALL-TEST')}` sent to caregiver speed dial.")
 
     with info_col:
         telemetry_slot = st.empty()
@@ -667,8 +642,8 @@ def render_live_monitor_page(
                     unsafe_allow_html=True
                 )
 
-            # Sleep 0.05s (20 Hz refresh) for snappy zero-latency telemetry updates
-            time.sleep(0.05)
+            # Sleep 0.10s (10 Hz refresh) for smooth zero-latency telemetry updates without WebSocket DOM thrashing
+            time.sleep(0.10)
 
         alarm_slot.empty()
 
@@ -1246,19 +1221,19 @@ def render_settings_page(
 
         st.session_state["setting_stride"] = st.slider(
             "Temporal Frame Stride (Skip Factor)",
-            1, 4, int(st.session_state.get("setting_stride", 1)), 1,
-            help="Process every Nth frame. Increase if running on resource-constrained hardware."
+            1, 4, int(st.session_state.get("setting_stride", 2)), 1,
+            help="Process every Nth frame. Stride 2 cuts CPU usage by 50% while maintaining full 24 FPS video display."
         )
 
-        imgsz_options = [224, 256, 320, 480, 640]
-        cur_imgsz = int(st.session_state.get("setting_imgsz", 480))
+        imgsz_options = [160, 192, 224, 256, 320]
+        cur_imgsz = int(st.session_state.get("setting_imgsz", 192))
         if cur_imgsz not in imgsz_options:
-            cur_imgsz = 480
+            cur_imgsz = 192
         st.session_state["setting_imgsz"] = st.select_slider(
             "YOLOv8 Pose Frame Resolution",
             options=imgsz_options,
             value=cur_imgsz,
-            help="Frame resolution. 224/256/320 for ultra-fast low latency; 480/640 for high precision."
+            help="Frame resolution. 160/192 for ultra-fast zero latency; 256/320 for high precision."
         )
 
         st.session_state["setting_desk_mode"] = st.toggle(
@@ -1358,8 +1333,8 @@ def render_settings_page(
                 st.session_state["setting_fall_thr"] = 0.60
                 st.session_state["setting_need"] = 4
                 st.session_state["setting_alpha"] = 0.35
-                st.session_state["setting_stride"] = 1
-                st.session_state["setting_imgsz"] = 480
+                st.session_state["setting_stride"] = 2
+                st.session_state["setting_imgsz"] = 192
                 st.session_state["setting_desk_mode"] = False
                 st.session_state["setting_max_frames"] = 900
                 st.session_state["setting_alarm_enabled"] = True

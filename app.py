@@ -52,8 +52,8 @@ def initialize_session_defaults() -> None:
         "setting_fall_thr": 0.60,
         "setting_need": 2,
         "setting_alpha": 0.65,
-        "setting_stride": 1,
-        "setting_imgsz": 256,
+        "setting_stride": 2,
+        "setting_imgsz": 192,
         "setting_desk_mode": False,
 
         "setting_max_frames": 900,

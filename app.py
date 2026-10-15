@@ -157,6 +157,7 @@ def show_about():
         - ✅ **Normal** — Upright posture or no subject in frame
         """
     )
+    st.link_button("🎨 View FA-2 Canva Storyboard", "https://canva.link/7iadcf1w4rsmwx3", use_container_width=True)
     st.info("Input options: Single Photo, Stored Video, Camera Snapshot, or Live WebRTC.")
 
 

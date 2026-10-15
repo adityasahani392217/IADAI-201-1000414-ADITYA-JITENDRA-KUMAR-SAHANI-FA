@@ -3,16 +3,18 @@
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
+[![Storyboard Canva](https://img.shields.io/badge/Canva-Storyboard%20Presentation-00C4CC?logo=canva&logoColor=white)](https://canva.link/7iadcf1w4rsmwx3)
 [![Kaggle Dataset](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?logo=github&logoColor=white)](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
 
 ---
 
 ### 🌐 Live Deployment & Project Links
-- **Live Streamlit Web Application:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
-- **Interactive Google Colab Notebook:** [Open in Google Colab](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
-- **Kaggle Le2i Fall Detection Dataset:** [tuyenldvn/falldataset-imvia](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
-- **GitHub Repository:** [https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
+- **🎨 Interactive Presentation & Storyboard (Canva):** [https://canva.link/7iadcf1w4rsmwx3](https://canva.link/7iadcf1w4rsmwx3)
+- **🚀 Live Streamlit Web Application:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+- **📓 Google Colab Training Notebook:** [Open in Google Colab](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
+- **📦 Kaggle Le2i Fall Detection Dataset:** [tuyenldvn/falldataset-imvia](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
+- **🐙 GitHub Source Repository:** [https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
 
 ---
 
@@ -33,88 +35,153 @@ Elderly falls represent one of the leading causes of fatal and non-fatal injurie
 
 ---
 
-## 🚀 Key System Features
+## 🧠 How SafeFall AI Works: End-to-End Technical Deep Dive
 
-- **6 Clinical Postural States:**
-  1. 🚨 **Fall Detected** — Emergency: Torso tilt $>35^\circ$ or sudden horizontal recumbency.
-  2. ⚠️ **Off Balance** — Warning: Torso tilt between $20^\circ$ and $35^\circ$ or acute angular tilt delta $>12^\circ$.
-  3. 🪑 **Sitting** — Neutral: Chair sit detection via knee flexion angles ($<130^\circ$) and forward thigh depth ($z$-axis disparity).
-  4. 🧍 **Standing** — Neutral: Upright vertical spinal alignment with extended knee angles ($\ge 150^\circ$).
-  5. 🚶 **Walking** — Dynamic: Asymmetric leg step width, ankle lift differential, and sustained multi-frame hip trajectory.
-  6. ✅ **Normal** — System Idle / Upright activity or no subject present in the frame.
+The architecture operates in five synchronized processing layers: **Skeletal Landmark Extraction**, **Mathematical Biomechanics**, **Clinical Posture Inference**, **Temporal Fall Retention**, and **Emergency Alerting**.
 
-- **False-Alarm Mitigation Engine:**
-  - Distinguishes intentional reclined chair sitting ($35^\circ \le \text{tilt} \le 60^\circ$ with knee flexion) from ground impact.
-  - Distinguishes horizontal sleeping/resting states on beds from violent sudden falls using tilt delta history.
-
-- **Multi-Modal Input Modes:**
-  - 📷 **Photo Mode:** Instant single-image biomechanical analysis and confidence score estimation.
-  - 🎥 **Video Mode:** PyAV in-memory frame decoding, temporal tracking, activity distribution bar chart, and confusion matrix heatmap.
-  - 📸 **Camera Snapshot:** Native webcam snapshot capture via Streamlit.
-  - 📡 **Live WebRTC Stream:** Full-duplex real-time video streaming with background-thread pose detection.
-
-- **Emergency Alert & Telehealth Integration:**
-  - Flashing full-screen red emergency border indicator.
-  - Web Audio API acoustic alarm synthesizer with immediate **Snooze** functionality.
-  - One-click **Call 112** emergency hotline dialer.
-  - Direct GPS-based **Nearest Hospital** Google Maps locator.
+```text
+[Input Feed: Photo / Video / Camera Snapshot / Live WebRTC Stream]
+                             │
+                             ▼
+               [Phase 1: Skeletal Landmark Extraction]
+             MediaPipe Pose Landmarker Tasks (33 Keypoints)
+                             │
+                             ▼
+            [Phase 2: Mathematical Feature Engineering]
+    ├── Torso Tilt Angle (atan2)
+    ├── Knee Joint Flexion (Law of Cosines)
+    ├── Forward Thigh Depth (Δz disparity)
+    ├── Lateral Step Width & Foot Lift
+    └── Multi-Frame Hip Centroid Displacement
+                             │
+                             ▼
+         [Phase 3: Decision Engine & False-Alarm Filter]
+    ├── Disambiguate Reclined Chair Sit (35° < Tilt < 60° with Knee Flexion)
+    ├── Disambiguate Horizontal Bed Rest (Straight Leg Low-Delta Recumbency)
+    ├── Classify: Fall, Off Balance, Sitting, Standing, Walking, Normal
+    └── Fall State Lock (Maintains Emergency Until Addressed)
+                             │
+                             ▼
+              [Phase 4: Telehealth & Emergency UI]
+    ├── Real-Time Skeleton Overlay & Status Badge
+    ├── Full-Screen Flashing Red Emergency Border
+    ├── Dual-Tone Synthesized Acoustic Siren (880 Hz / 520 Hz) + Snooze
+    ├── One-Click 112 Phone Dialer & GPS Hospital Locator
+    └── Altair Activity Bar Charts & Dynamic Confusion Matrix
+```
 
 ---
 
-## 📂 Project Repository Structure
+### Phase 1: Skeletal Keypoint Extraction (Google MediaPipe Tasks)
+The vision engine receives an RGB frame and runs MediaPipe Pose Landmarker Tasks (`pose_landmarker.task`) compiled for real-time CPU execution:
+- **Topology:** Extracts 33 3D normalized spatial coordinates:
+  - **Torso Centroid:** Left Shoulder (#11), Right Shoulder (#12), Left Hip (#23), Right Hip (#24)
+  - **Lower Limbs:** Left Knee (#25), Right Knee (#26), Left Ankle (#27), Right Ankle (#28)
+- **Visibility Gate:** Every landmark includes visibility score $v_i \in [0, 1]$. Points with $v_i < 0.50$ are masked to prevent noise from limb occlusions.
+
+---
+
+### Phase 2: Mathematical & Biomechanical Feature Engineering
+
+1. **Torso Vertical Tilt Angle ($\theta_{tilt}$):**
+   Computes the angular deviation of the spine vector from the true gravitational vertical axis:
+   $$\text{Shoulder Centroid: } S = \left(\frac{x_{11} + x_{12}}{2}, \frac{y_{11} + y_{12}}{2}\right)$$
+   $$\text{Hip Centroid: } H = \left(\frac{x_{23} + x_{24}}{2}, \frac{y_{23} + y_{24}}{2}\right)$$
+   $$\Delta x = H_x - S_x, \quad \Delta y = H_y - S_y$$
+   $$\theta_{tilt} = \left| \operatorname{atan2}(\Delta x, \Delta y) \right| \times \frac{180^\circ}{\pi}$$
+   - **Upright Standing:** $\theta_{tilt} < 20^\circ$
+   - **Off Balance Warning:** $20^\circ \le \theta_{tilt} \le 35^\circ$
+   - **Candidate Fall:** $\theta_{tilt} > 35^\circ$
+
+2. **Knee Joint Flexion ($\theta_{knee}$ via Law of Cosines):**
+   Calculates the inner angle at the knee vertex using vectors $\vec{u} = \vec{x}_{hip} - \vec{x}_{knee}$ and $\vec{v} = \vec{x}_{ankle} - \vec{x}_{knee}$:
+   $$\cos\theta = \frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}$$
+   $$\theta_{knee} = \arccos\left(\operatorname{clamp}(\cos\theta, -1.0, 1.0)\right) \times \frac{180^\circ}{\pi}$$
+   - Fully Extended Leg: $\theta_{knee} \ge 150^\circ$
+   - Folded Sitting Posture: $\theta_{knee} < 130^\circ$
+
+3. **Forward Thigh Depth Disparity ($\Delta z$):**
+   MediaPipe provides normalized camera-depth coordinates ($z$). When an elderly individual sits facing the camera, the knees project toward the lens while hips remain back:
+   $$\bar{z}_{hip} = \frac{z_{23} + z_{24}}{2}, \quad \bar{z}_{knee} = \frac{z_{25} + z_{26}}{2}$$
+   $$\Delta z = \bar{z}_{hip} - \bar{z}_{knee} > 0.08$$
+   This prevents frontal sitting from being misclassified as standing.
+
+4. **Dynamic Angular Tilt Velocity ($\Delta \theta_t$):**
+   Tracks sudden drops frame-by-frame:
+   $$\Delta \theta_t = \theta_t - \theta_{t-1}$$
+   If $\Delta \theta_t > 12^\circ$ and $\theta_t > 18^\circ$, an **Off Balance Warning** is raised immediately before ground impact.
+
+5. **Locomotion Gait & Hip Trajectory:**
+   Tracks stride width $\Delta x_{ankle} = |x_{27} - x_{28}|$, foot lift $|y_{27} - y_{28}|$, and 10-frame running hip centroid path:
+   $$\text{Cumulative Path: } P = \sum_{k=1}^{N-1} \|H_k - H_{k-1}\|, \quad \text{Net Path: } D = \|H_N - H_0\|$$
+   A persistent forward trajectory ($P > 0.10$ and $D > 0.45 P$) confirms **Walking** locomotion rather than static sway.
+
+---
+
+### Phase 3: Clinical Decision Logic & False-Alarm Mitigation
+
+| Postural State | Biomechanical Detection Criteria | Clinical Meaning | Alert State |
+| :--- | :--- | :--- | :--- |
+| **Fall Detected** | $\theta_{tilt} > 35^\circ$, not reclined on chair, not sleeping. | High-risk ground collapse or recumbency | 🚨 **CRITICAL EMERGENCY** |
+| **Off Balance** | $20^\circ < \theta_{tilt} \le 35^\circ$, or angular drop delta $> 12^\circ$ with tilt $> 18^\circ$. | Acute postural instability / stumble | ⚠️ **Warning Alert** |
+| **Sitting** | Knee flexion $< 130^\circ$ or forward thigh depth disparity $\Delta z > 0.08$. | Rest on chair / wheelchair / bench | Safe (Neutral) |
+| **Walking** | Asymmetric knee flexion ($|\theta_L - \theta_R| > 28^\circ$), wide ankle spacing, or hip translation. | Active forward gait locomotion | Safe (Neutral) |
+| **Standing** | Upright torso ($\theta_{tilt} < 20^\circ$), extended leg angles ($\ge 150^\circ$). | Normal vertical stance | Safe (Neutral) |
+| **Normal** | Landmark confidence $< 0.50$ (no person detected in frame). | Idle monitoring | Safe (Neutral) |
+
+#### Advanced False-Alarm Disambiguation:
+- **Reclined Chair Sit vs. Fall:** If torso tilt is between $35^\circ$ and $60^\circ$ but knees are flexed or thighs are elevated, SafeFall AI flags a `sitting` false-alarm, avoiding unnecessary ambulance dispatches.
+- **Horizontal Sleeping vs. Fall:** If the body is horizontal with both legs straight and no preceding violent angular tilt delta, the system flags a `sleeping` state.
+- **Fall State Retention:** When a true fall occurs, the system locks the emergency alert state. Even if the patient stops moving and lies motionless on the floor, the alarm remains active until assistance is rendered.
+
+---
+
+### Phase 4: Operational Input Modes
+
+1. **📷 Photo Mode:** Analyzes static JPEG/PNG clinical photographs, displays bounding skeleton, estimated confidence percentage, and posture badge.
+2. **🎥 Video Mode:** Decodes uploaded video feeds in memory (using PyAV with OpenCV fallback), samples temporal keyframes, displays an Altair activity distribution bar chart, and outputs a dynamic confusion matrix.
+3. **📸 Camera Snapshot:** Built-in webcam snapshot capture directly in the browser via `st.camera_input`.
+4. **📡 Live WebRTC Stream:** Full-duplex real-time video streaming with background thread pose detection and persistent siren alerts.
+
+---
+
+### Phase 5: Emergency Telehealth & Alarm Protocols
+
+Upon detecting a fall event, the application immediately initiates:
+1. **Flashing Emergency Border:** Pulsing red perimeter alert on screen.
+2. **Dual-Frequency Acoustic Siren:** Web Audio API synthesizer oscillating between **880 Hz** (high tone) and **520 Hz** (low tone) at 320ms intervals.
+3. **Interactive Snooze Button:** Silences the siren immediately if verified benign.
+4. **Emergency Calling (Call 112):** Directly dials emergency medical services via `tel:112`.
+5. **GPS Hospital Directory:** Opens Google Maps with the query `nearest hospital` centered on the user's location.
+
+---
+
+## 🎨 Storyboard & System Design (Canva Presentation)
+
+The complete visual storyboard, system architecture sketches, UI mockups, and deployment flow are available on Canva:
+- 🔗 **Canva Presentation Link:** [https://canva.link/7iadcf1w4rsmwx3](https://canva.link/7iadcf1w4rsmwx3)
+
+---
+
+## 📂 Project Structure
 
 ```text
 .
-├── app.py                                        # Main Streamlit web application & kinematic pipeline
-├── pose_landmarker.task                          # Google MediaPipe pose landmark detector asset
-├── logo.png                                      # Healthcare application logo
-├── SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb  # Google Colab Kaggle ingestion & training notebook
-├── requirements.txt                              # Python runtime dependencies
-├── packages.txt                                  # Streamlit Cloud system packages (libgl1, ffmpeg)
+├── .gitignore                                    # Clean Git exclusion rules
+├── .streamlit/
+│   └── config.toml                               # Streamlit UI theme configuration
 ├── README.md                                     # FA-2 project report & submission documentation
+├── SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb  # Google Colab Kaggle ingestion & training notebook
+├── app.py                                        # Main Streamlit web application & kinematic pipeline
+├── logo.png                                      # Healthcare application logo
+├── packages.txt                                  # Streamlit Cloud system packages (libgl1, ffmpeg)
+├── pose_landmarker.task                          # Google MediaPipe pose landmark detector asset
+├── requirements.txt                              # Python runtime dependencies
 └── assets/                                       # High-resolution clinical evaluation graphics
     ├── accuracy_curve.png
     ├── confusion_matrix.png
     ├── loss_curve.png
     └── precision_recall_f1_bar.png
-```
-
----
-
-## 🔬 System Architecture & Biomechanical Pipeline
-
-```text
-[Input Source: Photo / Video / Camera / Live WebRTC]
-                         │
-                         ▼
-             [Preprocessing & Color Space]
-          (BGR to RGB, Contiguous Array)
-                         │
-                         ▼
-        [MediaPipe Pose Landmarker Tasks]
-    (33 Spatial Landmarks with (x, y, z) Coordinates)
-                         │
-                         ▼
-         [Biomechanical Feature Extraction]
-  ├── Trunk Tilt Angle: θ_tilt = |atan2(Δx_torso, Δy_torso)|
-  ├── Left & Right Knee Flexion: Law of Cosines on (Hip, Knee, Ankle)
-  ├── Forward Thigh Depth Disparity: Δz = z_hip - z_knee
-  ├── Lateral Step Width: Δx_ankle = |x_ankle_L - x_ankle_R|
-  └── Hip Trajectory & Ankle Velocity Disparity
-                         │
-                         ▼
-          [Clinical Classification Logic]
-  ├── Tilt > 35° & Not Filtered ────────────> [FALL DETECTED (EMERGENCY)]
-  ├── 20° < Tilt ≤ 35° or Acute Delta ──────> [OFF BALANCE (WARNING)]
-  ├── Knee Bend < 130° or Forward Thigh ────> [SITTING]
-  ├── Asymmetric Leg Flexion / Step Width ──> [WALKING]
-  └── Upright Vertical Torso (Tilt < 20°) ──> [STANDING / NORMAL]
-                         │
-                         ▼
-             [Healthcare Dashboard Output]
-  ├── Real-time Pose Skeleton Overlay
-  ├── Altair Activity Distribution & Confusion Matrix
-  └── Siren Synthesizer & 112 Telehealth Protocol
 ```
 
 ---

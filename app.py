@@ -36,12 +36,12 @@ ROOT = Path(__file__).parent
 TASK_PATH = ROOT / "pose_landmarker.task"
 LOGO_PATH = ROOT / "logo.png"
 
-# Page configuration
+# Page configuration with expanded sidebar
 st.set_page_config(
     page_title="SafeFall AI | Aditya Sahani (1000414)",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # 6 Clinical Activity Classes & Color System
@@ -63,7 +63,7 @@ CLASS_GLYPHS = {
     "FALL": "🚨"
 }
 
-# The user's original "Healthcare Sage" white and green design system
+# The user's original "Healthcare Sage" design system + Sidebar styling
 HEALTHCARE_SAGE_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -87,6 +87,8 @@ HEALTHCARE_SAGE_CSS = """
     --shadow-sm: 0 1px 3px rgba(31, 41, 51, 0.04);
     --shadow-md: 0 4px 14px rgba(31, 41, 51, 0.06), 0 1px 3px rgba(31, 41, 51, 0.03);
     --shadow-lg: 0 10px 25px rgba(31, 41, 51, 0.08);
+    --sidebar-bg: #FAFBF8;
+    --sidebar-border: #E8EAE2;
     --status-green: #489975;
     --status-amber: #D99B52;
     --status-red: #D97878;
@@ -110,10 +112,138 @@ html, body, [class*="css"], .stApp {
 }
 
 .main .block-container {
-    max-width: 1280px !important;
+    max-width: 1260px !important;
     padding-top: 1.2rem !important;
     padding-bottom: 3.5rem !important;
     margin: 0 auto !important;
+}
+
+/* ========================================================= */
+/* SIDEBAR STYLING                                           */
+/* ========================================================= */
+section[data-testid="stSidebar"] {
+    background-color: var(--sidebar-bg) !important;
+    border-right: 1px solid var(--sidebar-border) !important;
+    color: var(--text-primary) !important;
+    padding-top: 1rem;
+}
+
+.sidebar-brand {
+    padding: 8px 4px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 16px;
+}
+
+.sidebar-brand h2 {
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.025em;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.sidebar-brand p {
+    font-size: 0.78rem !important;
+    color: var(--text-secondary) !important;
+    margin: 2px 0 0 !important;
+}
+
+.sidebar-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #FFFFFF;
+    background: var(--accent);
+    flex: none;
+}
+
+.sidebar-profile-info .nm {
+    font-weight: 700;
+    font-size: 0.90rem;
+    color: var(--text-primary);
+}
+
+.sidebar-profile-info .st {
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sidebar-telemetry {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 18px;
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-telemetry .t-lbl {
+    font-size: 0.70rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+}
+
+/* Sidebar Radio Styling */
+section[data-testid="stSidebar"] div[role="radiogroup"] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    width: 100% !important;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-subtle) !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer;
+    transition: all 0.15s ease !important;
+    width: 100% !important;
+    display: flex;
+    align-items: center;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    border-color: var(--accent) !important;
+    color: var(--text-primary) !important;
+    transform: translateX(2px);
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+    background: #FFFFFF !important;
+    color: var(--text-primary) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm) !important;
+    font-weight: 700 !important;
 }
 
 /* TOP NAVIGATION HEADER */
@@ -406,45 +536,6 @@ html, body, [class*="css"], .stApp {
     font-variant-numeric: tabular-nums;
 }
 
-/* STREAMLIT TABS & CONTROLS */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background: var(--bg-elevated) !important;
-    padding: 6px;
-    border-radius: 14px;
-    border: 1px solid var(--border-subtle);
-    margin-bottom: 1.5rem;
-}
-
-.stTabs [data-baseweb="tab"] {
-    height: 42px;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.88rem;
-    color: var(--text-secondary) !important;
-    padding: 0 20px;
-    border: none !important;
-    background: transparent !important;
-    transition: all 0.2s ease;
-}
-
-.stTabs [data-baseweb="tab"]:hover {
-    color: var(--text-primary) !important;
-    background: rgba(94, 139, 122, 0.08) !important;
-}
-
-.stTabs [aria-selected="true"] {
-    background: var(--bg-surface) !important;
-    color: #2D6A4F !important;
-    border: 1px solid var(--border-focus) !important;
-    font-weight: 700 !important;
-    box-shadow: var(--shadow-sm);
-}
-
-.stTabs [data-baseweb="tab-border"] {
-    display: none !important;
-}
-
 /* BUTTONS */
 .stButton > button {
     background: #5E8B7A !important;
@@ -521,6 +612,70 @@ iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {
 """
 
 st.markdown(HEALTHCARE_SAGE_CSS, unsafe_allow_html=True)
+
+
+# =========================================================
+# HEALTHCARE SIDEBAR NAVIGATION BAR
+# =========================================================
+with st.sidebar:
+    st.markdown(
+        """
+        <div class="sidebar-brand">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="brand-icon-box" style="width:38px; height:38px; font-size:1.2rem;">🛡️</div>
+                <div>
+                    <h2>SafeFall AI</h2>
+                    <p>Clinical Sentinel System</p>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-profile">
+            <div class="sidebar-avatar">AS</div>
+            <div class="sidebar-profile-info">
+                <div class="nm">Aditya Sahani</div>
+                <div class="st"><span class="status-dot pulse"></span>ID: 1000414 &bull; FA-2</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div style="font-size:0.72rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Workspace Navigation</div>',
+        unsafe_allow_html=True
+    )
+
+    selected_nav = st.radio(
+        "Navigation Workspace",
+        [
+            "🛡️ Live Sentinel Vision",
+            "📊 Telehealth Analytics",
+            "🔬 Clinical Model Evaluation (Step 6)",
+            "🏥 Telehealth Protocols & SOP (Step 8)"
+        ],
+        index=0,
+        label_visibility="collapsed",
+        key="main_sidebar_navigation"
+    )
+
+    st.markdown(
+        """
+        <div class="sidebar-telemetry">
+            <div class="t-lbl">System Telemetry</div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <span class="badge" style="width:100%; justify-content:flex-start;"><span class="status-dot"></span>MediaPipe 33-Keypoint</span>
+                <span class="badge" style="width:100%; justify-content:flex-start;"><span class="status-dot"></span>Inference: 30 FPS HD</span>
+                <span class="badge" style="width:100%; justify-content:flex-start;"><span class="status-dot" style="background:#D99B52;"></span>Acoustic Siren: 880/520 Hz</span>
+                <span class="badge" style="width:100%; justify-content:flex-start;"><span class="status-dot" style="background:#D97878;"></span>112 Hotline: Armed</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
+    st.link_button("🎨 Canva Storyboard", "https://canva.link/7iadcf1w4rsmwx3", use_container_width=True)
+    st.link_button("📓 Google Colab Notebook", "https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb", use_container_width=True)
 
 
 # Top Navigation Header
@@ -893,7 +1048,6 @@ def show_bars(rows, value_name, value_label, top, number_format):
 
 # Render 6 Activity Cards
 def render_activity_cards(active_label: Optional[str] = None):
-    # Normalize label
     active_key = "NORMAL_ACTIVITY"
     if active_label:
         norm = active_label.upper().replace(" ", "_")
@@ -1310,15 +1464,10 @@ st.session_state["_fall_alarm_shown"] = False
 # Render top Bento telemetry scorecards
 render_monitoring_panel()
 
-# 4 Main Clinical Tabs
-tab_sentinel, tab_telemetry, tab_evidence, tab_protocols = st.tabs([
-    "🛡️ Live Sentinel Vision",
-    "📊 Telehealth Analytics",
-    "🔬 Model Evaluation (Step 6)",
-    "🏥 Telehealth Protocols (Step 8)"
-])
-
-with tab_sentinel:
+# =========================================================
+# WORKSPACE ROUTING VIA SIDEBAR NAVIGATION
+# =========================================================
+if selected_nav == "🛡️ Live Sentinel Vision":
     col_input, col_ctrl = st.columns([3.8, 1.2], vertical_alignment="center")
     with col_input:
         mode = st.segmented_control(
@@ -1350,7 +1499,6 @@ with tab_sentinel:
                 frame, label, confidence, tilt, false_alarm = predict_frame(pose, frame)
                 show_result(frame, label, confidence, false_alarm, f"photo-{photo.name}-{photo.size}", tilt)
         else:
-            # Show empty default activity cards
             render_activity_cards(None)
 
     elif mode == "Video":
@@ -1552,7 +1700,7 @@ with tab_sentinel:
 
             live_fall_alarm()
 
-with tab_telemetry:
+elif selected_nav == "📊 Telehealth Analytics":
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
@@ -1608,7 +1756,7 @@ with tab_telemetry:
             unsafe_allow_html=True
         )
 
-with tab_evidence:
+elif selected_nav == "🔬 Clinical Model Evaluation (Step 6)":
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
@@ -1693,7 +1841,8 @@ with tab_evidence:
         """
     )
 
-with tab_protocols:
+else:
+    # 🏥 Telehealth Protocols & SOP (Step 8)
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">

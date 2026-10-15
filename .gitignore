@@ -1,0 +1,59 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Tunnel and temporary binaries
+cloudflared.exe
+*.exe
+
+# Kaggle Large Video & Image Datasets (Do not upload to Git)
+data/le2i_dataset/
+data/internet_images/
+# Unignore processed CSVs so repo runs out of the box
+!data/train_dataset.csv
+!data/test_dataset.csv
+!data/val_dataset.csv
+data/internet_features.csv
+*.avi
+*.mp4
+!data/sample_media/demo_fall_sequence.mp4
+
+# Incident snapshots and temp media
+outputs/falls/*.jpg
+outputs/falls/*.png
+!outputs/falls/.gitkeep
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Legacy code
+archive_legacy/
+outputs/fall_events.csv
+
+
+# Temporary Reference Repos & Workspace Build Artifacts
+ref_repos/
+build_colab_notebook.py
+best_safefall_model.pth
+safefall_evaluation_dashboard.png
+

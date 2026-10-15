@@ -2,6 +2,8 @@
 # Student: Aditya Jitendra Kumar Sahani (ID: 1000414)
 # Formative Assessment-2 (FA-2) | Machine Learning & Deep Learning (CRS AI)
 
+from __future__ import annotations
+
 import io
 import json
 import math
@@ -9,6 +11,7 @@ import os
 import threading
 import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import altair as alt
 try:
@@ -41,362 +44,499 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 6 Clinical Activity Classes & Color System
+ACTIVITY_CLASSES = ["SITTING", "STANDING", "WALKING", "OFF_BALANCE", "NORMAL_ACTIVITY", "FALL"]
+CLASS_HEX_COLORS = {
+    "SITTING": "#40916C",
+    "STANDING": "#52B788",
+    "WALKING": "#2D6A4F",
+    "OFF_BALANCE": "#F59E0B",
+    "NORMAL_ACTIVITY": "#10B981",
+    "FALL": "#EF4444"
+}
+CLASS_GLYPHS = {
+    "SITTING": "🪑",
+    "STANDING": "🧍",
+    "WALKING": "🚶",
+    "OFF_BALANCE": "⚠️",
+    "NORMAL_ACTIVITY": "🧘",
+    "FALL": "🚨"
+}
 
-def current_theme():
-    saved = st.query_params.get("theme")
-    if saved in ("light", "dark"):
-        return saved
-    try:
-        detected = st.context.theme.type
-        if detected in ("light", "dark"):
-            return detected
-    except Exception:
-        pass
-    return "light"  # Default to user's preferred off-white and green theme
+# The user's original "Healthcare Sage" white and green design system
+HEALTHCARE_SAGE_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+    --accent: #5E8B7A;
+    --accent-hover: #4D7466;
+    --accent2: #8EA8C3;
+    --ar: 94, 139, 122;
+    --br: 142, 168, 195;
+    --bg-canvas: #F7F7F3;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F2F3EC;
+    --bg-subtle: #FAFBF8;
+    --border-subtle: #E5E7DF;
+    --border-focus: #C8CCC0;
+    --border-accent: rgba(var(--ar), 0.45);
+    --text-primary: #1F2933;
+    --text-secondary: #4B5563;
+    --text-tertiary: #7C8894;
+    --shadow-sm: 0 1px 3px rgba(31, 41, 51, 0.04);
+    --shadow-md: 0 4px 14px rgba(31, 41, 51, 0.06), 0 1px 3px rgba(31, 41, 51, 0.03);
+    --shadow-lg: 0 10px 25px rgba(31, 41, 51, 0.08);
+    --status-green: #489975;
+    --status-amber: #D99B52;
+    --status-red: #D97878;
+}
+
+html, body, [class*="css"], .stApp {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    background-color: var(--bg-canvas) !important;
+    color: var(--text-primary) !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+.stApp {
+    background-color: #F7F7F3 !important;
+    background-image: radial-gradient(1200px 600px at 50% 0%, rgba(94, 139, 122, 0.045), transparent 70%) !important;
+    background-attachment: fixed !important;
+}
+
+#MainMenu, footer, header, [data-testid="stHeader"] {
+    display: none !important;
+}
+
+.main .block-container {
+    max-width: 1280px !important;
+    padding-top: 1.2rem !important;
+    padding-bottom: 3.5rem !important;
+    margin: 0 auto !important;
+}
+
+/* TOP NAVIGATION HEADER */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px 24px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
+}
+
+.top-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.brand-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #5E8B7A 0%, #4D7466 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 0 4px 12px rgba(94, 139, 122, 0.3);
+}
+
+.top-header-brand h1 {
+    font-size: 1.45rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.025em !important;
+    margin: 0 !important;
+}
+
+.top-header-brand p {
+    font-size: 0.84rem !important;
+    color: var(--text-secondary) !important;
+    margin: 2px 0 0 !important;
+    font-weight: 500 !important;
+}
+
+.top-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Badges & Pills */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    font-size: 0.80rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.badge.active {
+    color: var(--text-primary);
+    border-color: var(--border-accent);
+    background: #FFFFFF;
+    box-shadow: var(--shadow-sm);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    background: var(--status-green);
+}
+
+.status-dot.pulse {
+    animation: status-ping 2.0s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes status-ping {
+    75%, 100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* BENTO STAT GRID */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 16px 0 20px;
+}
+
+@media (max-width: 960px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr; }
+}
+
+.stat-tile {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.stat-tile:hover {
+    border-color: var(--border-focus);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-tile .l {
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+}
+
+.stat-tile .v {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-top: 4px;
+}
+
+.stat-tile .sub {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* 6 ACTIVITY POSTURE CARDS GRID */
+.activity-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin: 16px 0 20px;
+}
+
+@media (max-width: 1200px) {
+    .activity-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .activity-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.activity-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+}
+
+.activity-card:hover {
+    border-color: var(--border-focus);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.activity-card.active {
+    border-color: var(--c);
+    background: #FFFFFF;
+    box-shadow: 0 0 0 2px var(--c), var(--shadow-md);
+}
+
+.activity-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.activity-card-tag {
+    font-size: 0.70rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+
+.activity-card.active .activity-card-tag {
+    color: var(--c);
+    font-weight: 700;
+}
+
+.activity-card-icon {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+
+.activity-card-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* DIAGNOSTIC VERDICT BOX */
+.verdict-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 28px;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-sm);
+    margin: 14px 0 18px 0;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.verdict-box.fall {
+    border-color: #EF4444;
+    background: #FEF2F2;
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+}
+
+.verdict-box.off_balance {
+    border-color: #F59E0B;
+    background: #FFFBEB;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
+}
+
+.verdict-tag {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.verdict-val {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin-top: 4px;
+    line-height: 1.1;
+}
+
+.verdict-meta {
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+
+/* Circular Confidence Indicator */
+.confidence-dial {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(var(--rc) calc(var(--p) * 1%), var(--bg-elevated) 0);
+    box-shadow: var(--shadow-sm);
+    flex: none;
+}
+
+.confidence-dial span {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--bg-surface);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* STREAMLIT TABS & CONTROLS */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background: var(--bg-elevated) !important;
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    margin-bottom: 1.5rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 42px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-secondary) !important;
+    padding: 0 20px;
+    border: none !important;
+    background: transparent !important;
+    transition: all 0.2s ease;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--text-primary) !important;
+    background: rgba(94, 139, 122, 0.08) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--bg-surface) !important;
+    color: #2D6A4F !important;
+    border: 1px solid var(--border-focus) !important;
+    font-weight: 700 !important;
+    box-shadow: var(--shadow-sm);
+}
+
+.stTabs [data-baseweb="tab-border"] {
+    display: none !important;
+}
+
+/* BUTTONS */
+.stButton > button {
+    background: #5E8B7A !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    padding: 0.65rem 1.2rem !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.2s ease !important;
+}
+
+.stButton > button:hover {
+    background: #4D7466 !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md) !important;
+}
+
+.stLinkButton > a {
+    background: #5E8B7A !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    padding: 0.65rem 1.2rem !important;
+    text-decoration: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.2s ease !important;
+}
+
+.stLinkButton > a:hover {
+    background: #4D7466 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* VIEWPORT CONTAINER */
+div[data-testid="stCameraInput"], div[data-testid="stCameraInput"] video {
+    width: 100% !important;
+    max-width: 980px !important;
+    border-radius: 16px !important;
+    margin: 0 auto !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+div[data-testid="stImage"] img {
+    width: 100% !important;
+    max-height: 560px !important;
+    object-fit: contain !important;
+    border-radius: 16px !important;
+    margin: 0 auto !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {
+    width: 100% !important;
+    min-height: 560px !important;
+    border-radius: 16px !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+[data-testid="stHtml"]:has(#fall-alarm-setup) {
+    display: none;
+}
+</style>
+"""
+
+st.markdown(HEALTHCARE_SAGE_CSS, unsafe_allow_html=True)
 
 
-def paint_page(theme_name):
-    if theme_name == "dark":
-        base = "#141a24"
-        blooms = """
-            radial-gradient(circle at 10% 8%, rgba(16, 185, 129, 0.20), transparent 45%),
-            radial-gradient(circle at 92% 10%, rgba(56, 189, 248, 0.16), transparent 45%),
-            radial-gradient(circle at 100% 78%, rgba(99, 102, 241, 0.15), transparent 48%),
-            radial-gradient(circle at 0% 86%, rgba(16, 185, 129, 0.16), transparent 46%),
-            radial-gradient(circle at 48% 42%, rgba(245, 158, 11, 0.12), transparent 40%),
-            radial-gradient(circle at 72% 58%, rgba(16, 185, 129, 0.22), transparent 44%)
-        """
-        card_bg = "rgba(22, 30, 44, 0.88)"
-        card_border = "rgba(16, 185, 129, 0.25)"
-        text_color = "#f1f5f9"
-        subtext_color = "#94a3b8"
-        navbar_bg = "rgba(18, 25, 38, 0.85)"
-        tab_bg = "rgba(22, 30, 44, 0.75)"
-        tab_active_bg = "rgba(16, 185, 129, 0.22)"
-        tab_active_text = "#34d399"
-    else:
-        # User's preferred off-white and soft medical green aesthetic
-        base = "#fbfcfb"
-        blooms = """
-            radial-gradient(circle at 8% 0%, rgba(16, 185, 129, 0.16), transparent 45%),
-            radial-gradient(circle at 94% 6%, rgba(52, 211, 153, 0.14), transparent 44%),
-            radial-gradient(circle at 100% 78%, rgba(14, 165, 233, 0.10), transparent 48%),
-            radial-gradient(circle at 0% 86%, rgba(16, 185, 129, 0.14), transparent 46%),
-            radial-gradient(circle at 48% 42%, rgba(245, 158, 11, 0.08), transparent 40%),
-            radial-gradient(circle at 72% 58%, rgba(16, 185, 129, 0.20), transparent 44%)
-        """
-        card_bg = "rgba(255, 255, 255, 0.92)"
-        card_border = "rgba(16, 185, 129, 0.24)"
-        text_color = "#0f172a"
-        subtext_color = "#475569"
-        navbar_bg = "rgba(255, 255, 255, 0.92)"
-        tab_bg = "rgba(241, 245, 242, 0.85)"
-        tab_active_bg = "#ecfdf5"
-        tab_active_text = "#047857"
-
-    st.markdown(
-        f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
-
-        html, body, [class*="css"], .stApp {{
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
-            background-color: {base} !important;
-            color: {text_color} !important;
-        }}
-
-        .stApp {{
-            background-image: {blooms} !important;
-            background-attachment: fixed !important;
-        }}
-
-        #MainMenu, footer, header, [data-testid="stHeader"] {{
-            display: none !important;
-        }}
-
-        .main .block-container {{
-            max-width: 1220px !important;
-            padding-top: 1.2rem !important;
-            padding-bottom: 3.5rem !important;
-            margin: 0 auto !important;
-        }}
-
-        /* Clean Navbar */
-        .sentinel-nav {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 14px;
-            padding: 1.1rem 1.6rem;
-            background: {navbar_bg};
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid {card_border};
-            border-radius: 18px;
-            margin-bottom: 1.4rem;
-            box-shadow: 0 4px 20px -2px rgba(16, 185, 129, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.05);
-        }}
-        .brand-box {{
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }}
-        .brand-icon {{
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-        }}
-        .brand-title {{
-            font-size: 1.55rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            color: {text_color};
-            margin: 0;
-            line-height: 1.2;
-        }}
-        .brand-sub {{
-            font-size: 0.84rem;
-            color: {subtext_color};
-            font-weight: 500;
-            margin-top: 2px;
-        }}
-        .status-badge {{
-            display: inline-flex;
-            align-items: center;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            color: #065f46;
-            padding: 5px 12px;
-            border-radius: 9999px;
-            font-size: 0.76rem;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-        }}
-        .pulse-circle {{
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 7px;
-            box-shadow: 0 0 10px #10b981;
-            animation: pulse-ring 2s infinite ease-in-out;
-        }}
-        @keyframes pulse-ring {{
-            0%, 100% {{ transform: scale(1); opacity: 1; }}
-            50% {{ transform: scale(1.3); opacity: 0.6; }}
-        }}
-        .candidate-tag {{
-            display: inline-flex;
-            align-items: center;
-            background: rgba(16, 185, 129, 0.08);
-            border: 1px solid {card_border};
-            color: {text_color};
-            padding: 5px 12px;
-            border-radius: 9999px;
-            font-size: 0.78rem;
-            font-weight: 600;
-        }}
-
-        /* Telemetry KPI Cards */
-        .kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 14px;
-            margin-bottom: 1.5rem;
-        }}
-        .kpi-box {{
-            background: {card_bg};
-            backdrop-filter: blur(14px);
-            border: 1px solid {card_border};
-            border-radius: 16px;
-            padding: 16px 20px;
-            box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.08);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }}
-        .kpi-box:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.16);
-        }}
-        .kpi-top-bar {{
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-        }}
-        .kpi-lbl {{
-            font-size: 0.74rem;
-            text-transform: uppercase;
-            letter-spacing: 0.7px;
-            color: {subtext_color};
-            font-weight: 700;
-            display: flex;
-            justify-content: space-between;
-        }}
-        .kpi-num {{
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 2.1rem;
-            font-weight: 800;
-            margin-top: 5px;
-            line-height: 1.1;
-        }}
-        .kpi-note {{
-            font-size: 0.75rem;
-            color: {subtext_color};
-            margin-top: 4px;
-        }}
-
-        /* Modern Tabs */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-            background: {tab_bg} !important;
-            padding: 6px;
-            border-radius: 14px;
-            border: 1px solid {card_border};
-            margin-bottom: 1.5rem;
-        }}
-        .stTabs [data-baseweb="tab"] {{
-            height: 42px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.88rem;
-            color: {subtext_color} !important;
-            padding: 0 20px;
-            border: none !important;
-            background: transparent !important;
-            transition: all 0.2s ease;
-        }}
-        .stTabs [data-baseweb="tab"]:hover {{
-            color: {text_color} !important;
-            background: rgba(16, 185, 129, 0.08) !important;
-        }}
-        .stTabs [aria-selected="true"] {{
-            background: {tab_active_bg} !important;
-            color: {tab_active_text} !important;
-            border: 1px solid rgba(16, 185, 129, 0.4) !important;
-            font-weight: 700 !important;
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.16);
-        }}
-        .stTabs [data-baseweb="tab-border"] {{
-            display: none !important;
-        }}
-
-        /* Buttons & Link Buttons */
-        .stButton > button {{
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-            color: #ffffff !important;
-            border: none !important;
-            border-radius: 12px !important;
-            font-weight: 700 !important;
-            font-size: 0.88rem !important;
-            padding: 0.65rem 1.2rem !important;
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25) !important;
-            transition: all 0.2s ease !important;
-        }}
-        .stButton > button:hover {{
-            transform: translateY(-1px) !important;
-            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35) !important;
-        }}
-        .stLinkButton > a {{
-            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-            color: #ffffff !important;
-            border: none !important;
-            border-radius: 12px !important;
-            font-weight: 700 !important;
-            font-size: 0.88rem !important;
-            padding: 0.65rem 1.2rem !important;
-            text-decoration: none !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25) !important;
-            transition: all 0.2s ease !important;
-        }}
-        .stLinkButton > a:hover {{
-            transform: translateY(-1px) !important;
-            box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35) !important;
-        }}
-
-        /* Viewport Sizing */
-        div[data-testid="stCameraInput"], div[data-testid="stCameraInput"] video {{
-            width: 100% !important;
-            max-width: 980px !important;
-            border-radius: 16px !important;
-            margin: 0 auto !important;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
-            border: 1px solid {card_border} !important;
-        }}
-        div[data-testid="stImage"] img {{
-            width: 100% !important;
-            max-height: 560px !important;
-            object-fit: contain !important;
-            border-radius: 16px !important;
-            margin: 0 auto !important;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
-            border: 1px solid {card_border} !important;
-        }}
-        iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {{
-            width: 100% !important;
-            min-height: 560px !important;
-            border-radius: 16px !important;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
-            border: 1px solid {card_border} !important;
-        }}
-
-        [data-testid="stHtml"]:has(#fall-alarm-setup) {{
-            display: none;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def switch_theme(choice):
-    stored = "Light" if choice == "Light" else "Dark"
-    value = stored.lower()
-    st.html(
-        f"""
-        <script>
-        const key = "stActiveTheme-" + window.location.pathname + "-v2";
-        localStorage.setItem(key, JSON.stringify("{stored}"));
-        const url = new URL(window.location.href);
-        url.searchParams.set("theme", "{value}");
-        window.location.replace(url.toString());
-        </script>
-        """,
-        unsafe_allow_javascript=True,
-    )
-
-
-look = current_theme()
-paint_page(look)
-
-
-# Header Section with Logo, Title, and Theme Switcher
+# Top Navigation Header
 st.markdown(
     """
-    <div class="sentinel-nav">
-        <div class="brand-box">
-            <div class="brand-icon">🛡️</div>
-            <div>
-                <div class="brand-title">SafeFall AI Sentinel</div>
-                <div class="brand-sub">Clinical Postural Kinematics & Elderly Fall Detection System</div>
+    <div class="top-header">
+        <div class="top-header-left">
+            <div class="brand-icon-box">🛡️</div>
+            <div class="top-header-brand">
+                <h1>SafeFall AI Sentinel</h1>
+                <p>Clinical Postural Kinematics & Elderly Fall Detection System</p>
             </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div class="status-badge"><span class="pulse-circle"></span>SENTINEL ACTIVE (30 FPS)</div>
-            <div class="candidate-tag">👤 Aditya Sahani (1000414) | FA-2</div>
+        <div class="top-header-right">
+            <span class="badge active"><span class="status-dot pulse"></span>Sentinel Active (30 FPS)</span>
+            <span class="badge">👤 Aditya Sahani (1000414) | FA-2</span>
         </div>
     </div>
     """,
@@ -423,7 +563,7 @@ def show_about():
         - 🪑 **Sitting:** Knee flexion ($< 130^\circ$) & forward thigh depth disparity ($\Delta z > 0.08$)
         - 🧍 **Standing:** Upright vertical spinal alignment ($\theta_{tilt} < 20^\circ$)
         - 🚶 **Walking:** Dynamic gait stride & multi-frame hip displacement
-        - ✅ **Normal:** Upright safe activity / Idle monitoring
+        - 🧘 **Normal Activity:** Upright safe activity / Idle monitoring
         """
     )
     col1, col2 = st.columns(2)
@@ -645,10 +785,10 @@ def draw_pose(frame, landmarks):
         x = int(lm.x * width)
         y = int(lm.y * height)
         points.append((x, y))
-        cv2.circle(frame, (x, y), r, (0, 255, 120), -1)
+        cv2.circle(frame, (x, y), r, (72, 153, 117), -1)
     for a, b in links:
         if a < len(points) and b < len(points):
-            cv2.line(frame, points[a], points[b], (0, 230, 255), lw)
+            cv2.line(frame, points[a], points[b], (94, 139, 122), lw)
 
 def read_image_bytes(data):
     array = np.frombuffer(data, dtype=np.uint8)
@@ -658,21 +798,21 @@ def read_image_bytes(data):
 ACTIVITY_COLORS = {
     "fall": (0, 0, 255),
     "off balance": (0, 140, 255),
-    "sitting": (255, 80, 20),
-    "standing": (180, 30, 180),
-    "walking": (0, 230, 255),
-    "normal": (40, 180, 40),
+    "sitting": (108, 145, 64),
+    "standing": (136, 183, 82),
+    "walking": (79, 106, 45),
+    "normal": (129, 185, 16),
     "sleeping": (180, 120, 60),
 }
 
 def paint_label(frame, label):
     h, w = frame.shape[:2]
-    color = ACTIVITY_COLORS.get(label, (40, 180, 40))
+    color = ACTIVITY_COLORS.get(label, (72, 153, 117))
     scale = max(0.85, w / 680.0)
     thickness = max(2, int(scale * 2.2))
     box_w = int(320 * scale)
     box_h = int(54 * scale)
-    cv2.rectangle(frame, (10, 10), (box_w, box_h), (15, 23, 42), -1)
+    cv2.rectangle(frame, (10, 10), (box_w, box_h), (247, 247, 243), -1)
     cv2.rectangle(frame, (10, 10), (box_w, box_h), color, 2)
     display_text = label.upper()
     cv2.putText(frame, display_text, (20, int(38 * scale)), cv2.FONT_HERSHEY_SIMPLEX, scale * 0.9, color, thickness, cv2.LINE_AA)
@@ -698,12 +838,12 @@ def predict_frame(pose, frame, last_tilt=None, hips=None, feet=None):
 
 ACTIVITIES = ["fall", "off balance", "sitting", "standing", "walking", "normal"]
 BAR_COLORS = {
-    "fall": "#ef4444",
-    "off balance": "#f59e0b",
-    "sitting": "#3b82f6",
-    "standing": "#8b5cf6",
-    "walking": "#06b6d4",
-    "normal": "#10b981",
+    "fall": "#EF4444",
+    "off balance": "#F59E0B",
+    "sitting": "#40916C",
+    "standing": "#52B788",
+    "walking": "#2D6A4F",
+    "normal": "#10B981",
 }
 
 def show_bars(rows, value_name, value_label, top, number_format):
@@ -728,13 +868,13 @@ def show_bars(rows, value_name, value_label, top, number_format):
                 "activity:N",
                 title="Clinical Activity",
                 sort=order,
-                axis=alt.Axis(labelLimit=220, labelColor="#475569", titleColor="#0f172a"),
+                axis=alt.Axis(labelLimit=220, labelColor="#4B5563", titleColor="#1F2933"),
             ),
             x=alt.X(
                 f"{value_name}:Q",
                 title=value_label,
                 scale=alt.Scale(domain=[0, top]),
-                axis=alt.Axis(labelColor="#475569", titleColor="#0f172a"),
+                axis=alt.Axis(labelColor="#4B5563", titleColor="#1F2933"),
             ),
             color=alt.Color(
                 "kind:N",
@@ -751,39 +891,68 @@ def show_bars(rows, value_name, value_label, top, number_format):
     )
     st.altair_chart(chart, use_container_width=True)
 
-def show_picture(frame, label, tilt=None):
+# Render 6 Activity Cards
+def render_activity_cards(active_label: Optional[str] = None):
+    # Normalize label
+    active_key = "NORMAL_ACTIVITY"
+    if active_label:
+        norm = active_label.upper().replace(" ", "_")
+        if norm in ACTIVITY_CLASSES:
+            active_key = norm
+        elif norm == "NORMAL":
+            active_key = "NORMAL_ACTIVITY"
+
+    cards_html = []
+    for cls in ACTIVITY_CLASSES:
+        is_active = (cls == active_key)
+        active_cls = " active" if is_active else ""
+        color = CLASS_HEX_COLORS.get(cls, "#5E8B7A")
+        glyph = CLASS_GLYPHS.get(cls, "🧍")
+        display_name = cls.replace("_", " ").title()
+        status_tag = "ACTIVE" if is_active else "IDLE"
+
+        cards_html.append(
+            f'<div class="activity-card{active_cls}" style="--c:{color};">'
+            f'<div class="activity-card-header">'
+            f'<span class="activity-card-tag">{status_tag}</span>'
+            f'<span class="status-dot{" pulse" if is_active else ""}" style="background:{color};"></span>'
+            f'</div>'
+            f'<div class="activity-card-icon">{glyph}</div>'
+            f'<div class="activity-card-label">{display_name}</div>'
+            f'</div>'
+        )
+
+    st.markdown(f'<div class="activity-grid">{"".join(cards_html)}</div>', unsafe_allow_html=True)
+
+def show_picture_and_verdict(frame, label, confidence, tilt=None):
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     st.image(rgb, use_container_width=True)
-    color = BAR_COLORS.get(label, "#10b981")
+    
+    color = BAR_COLORS.get(label, "#5E8B7A")
+    pct = int(confidence * 100) if confidence else 85
     tilt_str = f"{tilt:.1f}°" if tilt is not None else "N/A"
-    st.markdown(
-        f"""
-        <div style="background: rgba(255,255,255,0.92); border: 1px solid rgba(16,185,129,0.25); padding: 14px 20px; border-radius: 14px; margin-top: 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow: 0 4px 16px rgba(16,185,129,0.08);">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.8px; color:#64748b; font-weight:700;">INFERENCE POSTURE:</span>
-                <span style="font-size:1.2rem; font-weight:800; color:{color}; letter-spacing:0.3px;">{label.upper()}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:14px;">
-                <span style="font-size:0.82rem; color:#475569; font-family:'JetBrains Mono',monospace;">Trunk Tilt: <b style="color:#0f172a;">{tilt_str}</b></span>
-                <span style="background:rgba(16,185,129,0.08); padding:4px 10px; border-radius:6px; font-size:0.75rem; color:#065f46; font-family:'JetBrains Mono',monospace;">MediaPipe 33-Keypoint</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    
+    verdict_cls = "fall" if label == "fall" else ("off_balance" if label == "off balance" else "")
+    verdict_title = label.upper()
+    if label == "fall":
+        verdict_title = "🚨 FALL DETECTED"
+    elif label == "off balance":
+        verdict_title = "⚠️ OFF BALANCE WARNING"
+    elif label == "normal":
+        verdict_title = "🧘 NORMAL ACTIVITY"
 
-def show_confidence(label, confidence):
-    color = BAR_COLORS.get(label, "#10b981")
-    conf_pct = int(confidence * 100)
     st.markdown(
         f"""
-        <div style="margin-top: 10px; background: rgba(255,255,255,0.85); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
-            <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; color:#334155;">
-                <span>AI Confidence Probability</span>
-                <span style="color:{color}; font-family:'JetBrains Mono',monospace; font-size:0.95rem;">{conf_pct}%</span>
+        <div class="verdict-box {verdict_cls}">
+            <div>
+                <div class="verdict-tag">DIAGNOSTIC VERDICT</div>
+                <div class="verdict-val" style="color: {color};">{verdict_title}</div>
+                <div class="verdict-meta">
+                    <b>MediaPipe 33-Keypoint Pipeline</b> &nbsp;|&nbsp; Trunk Tilt Angle: <b>{tilt_str}</b>
+                </div>
             </div>
-            <div style="background:rgba(0,0,0,0.06); height:8px; border-radius:4px; overflow:hidden; margin-top:6px;">
-                <div style="background:{color}; width:{conf_pct}%; height:100%; border-radius:4px; transition:width 0.4s ease;"></div>
+            <div class="confidence-dial" style="--p: {pct}; --rc: {color};">
+                <span>{pct}%</span>
             </div>
         </div>
         """,
@@ -888,11 +1057,11 @@ def sound_alarm(token):
     safe_token = json.dumps(token)
     st.html(
         f"""
-        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 14px; padding: 16px 20px; margin: 14px 0; box-shadow: 0 4px 20px rgba(239,68,68,0.18);">
-            <button type="button" id="fall-snooze" style="display:block;width:100%;background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);color:#ffffff;border:0;border-radius:12px;padding:1rem 1.2rem;font:800 1.15rem 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(239,68,68,0.35);transition:all 0.2s;">
+        <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 14px; padding: 16px 20px; margin: 14px 0; box-shadow: 0 4px 14px rgba(239,68,68,0.15);">
+            <button type="button" id="fall-snooze" style="display:block;width:100%;background:linear-gradient(135deg,#EF4444 0%,#DC2626 100%);color:#ffffff;border:0;border-radius:10px;padding:0.9rem 1.2rem;font:700 1.1rem 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 3px 12px rgba(239,68,68,0.3);transition:all 0.2s;">
               🚨 SNOOZE EMERGENCY SIREN
             </button>
-            <p id="fall-alarm-note" style="margin: 10px 0 0 0; text-align:center; font-weight:600; color:#dc2626; font-size:0.86rem;">Acoustic siren is actively sounding. Click button above to silence.</p>
+            <p id="fall-alarm-note" style="margin: 8px 0 0 0; text-align:center; font-weight:600; color:#DC2626; font-size:0.86rem;">Acoustic siren is actively sounding. Click button above to silence.</p>
         </div>
         <script>
         (function () {{
@@ -905,17 +1074,17 @@ def sound_alarm(token):
             if (!btn) return;
             if (on) {{
               btn.textContent = "🚨 SNOOZE EMERGENCY SIREN";
-              btn.style.background = "linear-gradient(135deg,#ef4444 0%,#dc2626 100%)";
+              btn.style.background = "linear-gradient(135deg,#EF4444 0%,#DC2626 100%)";
               btn.style.color = "#ffffff";
               if (note) note.textContent = "Acoustic siren is actively sounding. Click button above to snooze.";
             }} else if (quiet) {{
               btn.textContent = "Snoozed (Acoustic Siren Silenced)";
-              btn.style.background = "#64748b";
+              btn.style.background = "#64748B";
               btn.style.color = "#ffffff";
               if (note) note.textContent = "Snoozed. Acoustic alarm is currently silenced.";
             }} else {{
               btn.textContent = "Sound Alert Siren";
-              btn.style.background = "linear-gradient(135deg,#f59e0b 0%,#d97706 100%)";
+              btn.style.background = "linear-gradient(135deg,#F59E0B 0%,#D97706 100%)";
               btn.style.color = "#ffffff";
               if (note) note.textContent = "Click to activate siren if audio did not autoplay.";
             }}
@@ -953,12 +1122,12 @@ def show_emergency(token="fall"):
     st.session_state["_fall_alarm_shown"] = True
     st.markdown(
         """
-        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.08) 100%); border: 2px solid #ef4444; border-radius: 18px; padding: 22px; margin: 16px 0; box-shadow: 0 6px 28px rgba(239, 68, 68, 0.25);">
+        <div style="background: #FEF2F2; border: 2px solid #EF4444; border-radius: 16px; padding: 20px; margin: 16px 0; box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);">
             <div style="display:flex; align-items:center; gap:16px;">
-                <div style="width:54px; height:54px; border-radius:14px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; display:flex; align-items:center; justify-content:center; font-size:2rem;">🚨</div>
+                <div style="width:50px; height:50px; border-radius:12px; background:rgba(239,68,68,0.15); border:1px solid #EF4444; display:flex; align-items:center; justify-content:center; font-size:1.8rem;">🚨</div>
                 <div>
-                    <h3 style="color:#dc2626; margin:0; font-weight:800; font-size:1.45rem; letter-spacing:-0.4px;">CRITICAL EMERGENCY: FALL INCIDENT DETECTED</h3>
-                    <p style="color:#b91c1c; margin:3px 0 0 0; font-size:0.92rem; font-weight:500;">Patient horizontal recumbency confirmed by biomechanical postural kinematics.</p>
+                    <h3 style="color:#DC2626; margin:0; font-weight:800; font-size:1.4rem; letter-spacing:-0.02em;">CRITICAL EMERGENCY: FALL INCIDENT DETECTED</h3>
+                    <p style="color:#B91C1C; margin:2px 0 0 0; font-size:0.90rem; font-weight:500;">Patient horizontal recumbency confirmed by biomechanical postural kinematics.</p>
                 </div>
             </div>
         </div>
@@ -1004,7 +1173,7 @@ def show_heatmap(counts):
     )
     text = base.mark_text(baseline="middle").encode(
         text=alt.Text("Frames:Q"),
-        color=alt.condition(alt.datum.Frames > top / 2, alt.value("white"), alt.value("#334155")),
+        color=alt.condition(alt.datum.Frames > top / 2, alt.value("white"), alt.value("#1F2933")),
     )
     st.altair_chart((heatmap + text).properties(height=280).configure_view(strokeWidth=0), use_container_width=True)
 
@@ -1045,8 +1214,8 @@ def record_stat(label, conf):
 
 def show_result(frame, label, confidence, false_alarm=None, token="fall", tilt=None):
     record_stat(label, confidence)
-    show_picture(frame, label, tilt)
-    show_confidence(label, confidence)
+    render_activity_cards(label)
+    show_picture_and_verdict(frame, label, confidence, tilt)
     show_result_message(label, false_alarm, token)
 
 def frames_from_video(data):
@@ -1108,42 +1277,26 @@ def render_monitoring_panel():
     
     st.markdown(
         f"""
-        <div class="kpi-grid">
-            <div class="kpi-box">
-                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
-                <div class="kpi-lbl">
-                    <span>Total Inferences</span>
-                    <span style="color:#10b981;">📊</span>
-                </div>
-                <div class="kpi-num" style="color: #059669;">{total}</div>
-                <div class="kpi-note">Cumulative analyzed frames</div>
+        <div class="stat-grid">
+            <div class="stat-tile">
+                <div class="l">TOTAL INFERENCES</div>
+                <div class="v" style="color: #5E8B7A;">{total}</div>
+                <div class="sub">Cumulative analyzed frames</div>
             </div>
-            <div class="kpi-box">
-                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #ef4444, #dc2626);"></div>
-                <div class="kpi-lbl">
-                    <span>Critical Falls</span>
-                    <span style="color:#ef4444;">🚨</span>
-                </div>
-                <div class="kpi-num" style="color: #dc2626;">{falls}</div>
-                <div class="kpi-note">Emergency incidents detected</div>
+            <div class="stat-tile">
+                <div class="l">CRITICAL FALLS</div>
+                <div class="v" style="color: #EF4444;">{falls}</div>
+                <div class="sub">Emergency incidents detected</div>
             </div>
-            <div class="kpi-box">
-                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #10b981, #34d399);"></div>
-                <div class="kpi-lbl">
-                    <span>Safe Postures</span>
-                    <span style="color:#10b981;">✅</span>
-                </div>
-                <div class="kpi-num" style="color: #10b981;">{normal}</div>
-                <div class="kpi-note">Normal activities verified</div>
+            <div class="stat-tile">
+                <div class="l">SAFE POSTURES</div>
+                <div class="v" style="color: #2D6A4F;">{normal}</div>
+                <div class="sub">Normal activities verified</div>
             </div>
-            <div class="kpi-box">
-                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
-                <div class="kpi-lbl">
-                    <span>Model Confidence</span>
-                    <span style="color:#f59e0b;">🎯</span>
-                </div>
-                <div class="kpi-num" style="color: #d97706;">{conf_pct}%</div>
-                <div class="kpi-note">Real-time kinematic probability</div>
+            <div class="stat-tile">
+                <div class="l">MODEL CONFIDENCE</div>
+                <div class="v" style="color: #D97706;">{conf_pct}%</div>
+                <div class="sub">Real-time kinematic probability</div>
             </div>
         </div>
         """,
@@ -1154,7 +1307,7 @@ pose = load_pose()
 prepare_alarm()
 st.session_state["_fall_alarm_shown"] = False
 
-# Render top telemetry scorecards
+# Render top Bento telemetry scorecards
 render_monitoring_panel()
 
 # 4 Main Clinical Tabs
@@ -1166,7 +1319,7 @@ tab_sentinel, tab_telemetry, tab_evidence, tab_protocols = st.tabs([
 ])
 
 with tab_sentinel:
-    col_input, col_ctrl, col_theme = st.columns([3.2, 1.3, 0.9], vertical_alignment="center")
+    col_input, col_ctrl = st.columns([3.8, 1.2], vertical_alignment="center")
     with col_input:
         mode = st.segmented_control(
             "Input Mode",
@@ -1177,23 +1330,13 @@ with tab_sentinel:
     with col_ctrl:
         if st.button("ℹ️ System Architecture", use_container_width=True):
             show_about()
-    with col_theme:
-        theme_toggle = st.segmented_control(
-            "Theme",
-            ["Light", "Dark"],
-            default=look.capitalize(),
-            key="theme_mode_selector",
-            label_visibility="collapsed"
-        )
-        if theme_toggle and theme_toggle.lower() != look:
-            switch_theme(theme_toggle)
 
     if mode == "Photo":
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
                 <h4 style="margin:0; font-weight:700;">📷 Static Image Biomechanical Analysis</h4>
-                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Upload a patient photo to extract 33 landmarks, tilt velocity, and posture classification.</p>
+                <p style="margin:2px 0 0 0; color:#4B5563; font-size:0.86rem;">Upload a patient photo to extract 33 landmarks, tilt velocity, and posture classification.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1206,13 +1349,16 @@ with tab_sentinel:
             else:
                 frame, label, confidence, tilt, false_alarm = predict_frame(pose, frame)
                 show_result(frame, label, confidence, false_alarm, f"photo-{photo.name}-{photo.size}", tilt)
+        else:
+            # Show empty default activity cards
+            render_activity_cards(None)
 
     elif mode == "Video":
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
                 <h4 style="margin:0; font-weight:700;">🎥 Video Surveillance Temporal Sequence Analysis</h4>
-                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Ingest CCTV surveillance sequences to analyze continuous postural kinematics across multiple frames.</p>
+                <p style="margin:2px 0 0 0; color:#4B5563; font-size:0.86rem;">Ingest CCTV surveillance sequences to analyze continuous postural kinematics across multiple frames.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1269,9 +1415,8 @@ with tab_sentinel:
                     st.session_state["stat_normal"] = st.session_state.get("stat_normal", 0) + (len(frames) - counts["fall"])
                     st.session_state["stat_conf"] = confidence
 
-                    show_picture(frame, label, tilt)
-                    if label in ACTIVITIES:
-                        show_confidence(label, confidence)
+                    render_activity_cards(label)
+                    show_picture_and_verdict(frame, label, confidence, tilt)
                     
                     st.caption(f"Video Analytics: Processed {len(frames)} frames across temporal sequence.")
                     show_bars(
@@ -1298,13 +1443,15 @@ with tab_sentinel:
                             st.info("Status: Normal activity / No person detected.")
                         else:
                             st.success("Status: Safe (No fall detected).")
+        else:
+            render_activity_cards(None)
 
     elif mode == "Camera":
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
                 <h4 style="margin:0; font-weight:700;">📸 Web Camera Single Snapshot</h4>
-                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Capture an instant high-resolution frame from your web camera for immediate classification.</p>
+                <p style="margin:2px 0 0 0; color:#4B5563; font-size:0.86rem;">Capture an instant high-resolution frame from your web camera for immediate classification.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1317,13 +1464,15 @@ with tab_sentinel:
             else:
                 frame, label, confidence, tilt, false_alarm = predict_frame(pose, frame)
                 show_result(frame, label, confidence, false_alarm, f"camera-{len(camera.getvalue())}", tilt)
+        else:
+            render_activity_cards(None)
 
     else:
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
                 <h4 style="margin:0; font-weight:700;">📡 Full-Duplex Real-Time WebRTC Video Stream</h4>
-                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Low-latency live stream with continuous MediaPipe keypoint tracking at 30 FPS.</p>
+                <p style="margin:2px 0 0 0; color:#4B5563; font-size:0.86rem;">Low-latency live stream with continuous MediaPipe keypoint tracking at 30 FPS.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1407,8 +1556,8 @@ with tab_telemetry:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800;">📊 Continuous Telehealth Stream Analytics</h3>
-            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Live session activity frequencies, distribution charts, and connected telehealth pipeline telemetry.</p>
+            <h3 style="margin:0; font-weight:700;">📊 Continuous Telehealth Stream Analytics</h3>
+            <p style="margin:3px 0 0 0; color:#4B5563; font-size:0.88rem;">Live session activity frequencies, distribution charts, and connected telehealth pipeline telemetry.</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1436,23 +1585,23 @@ with tab_telemetry:
     with col_t2:
         st.markdown("#### Telehealth System Status")
         st.markdown(
-            f"""
-            <div style="background:{card_bg}; border:1px solid {card_border}; padding:18px; border-radius:14px; box-shadow:0 4px 16px rgba(16,185,129,0.08);">
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
-                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">Surveillance Stream</span>
-                    <span style="color:#059669; font-weight:700; font-size:0.86rem;">● Online (30 FPS)</span>
+            """
+            <div style="background:#FFFFFF; border:1px solid #E5E7DF; padding:18px; border-radius:14px; box-shadow:0 1px 3px rgba(31, 41, 51, 0.04);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #F2F3EC; padding-bottom:8px;">
+                    <span style="color:#4B5563; font-size:0.86rem; font-weight:600;">Surveillance Stream</span>
+                    <span style="color:#489975; font-weight:700; font-size:0.86rem;">● Online (30 FPS)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
-                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">MediaPipe 33-Keypoint Pipeline</span>
-                    <span style="color:#0284c7; font-weight:700; font-size:0.86rem;">Active (CPU Lite)</span>
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #F2F3EC; padding-bottom:8px;">
+                    <span style="color:#4B5563; font-size:0.86rem; font-weight:600;">MediaPipe 33-Keypoint Pipeline</span>
+                    <span style="color:#5E8B7A; font-weight:700; font-size:0.86rem;">Active (CPU Lite)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
-                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">Acoustic Siren Synthesizer</span>
-                    <span style="color:#d97706; font-weight:700; font-size:0.86rem;">Armed (Dual 880/520 Hz)</span>
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #F2F3EC; padding-bottom:8px;">
+                    <span style="color:#4B5563; font-size:0.86rem; font-weight:600;">Acoustic Siren Synthesizer</span>
+                    <span style="color:#D99B52; font-weight:700; font-size:0.86rem;">Armed (Dual 880/520 Hz)</span>
                 </div>
                 <div style="display:flex; justify-content:space-between;">
-                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">112 Telehealth Emergency Line</span>
-                    <span style="color:#dc2626; font-weight:700; font-size:0.86rem;">Ready (Instant Dial)</span>
+                    <span style="color:#4B5563; font-size:0.86rem; font-weight:600;">112 Telehealth Emergency Line</span>
+                    <span style="color:#D97878; font-weight:700; font-size:0.86rem;">Ready (Instant Dial)</span>
                 </div>
             </div>
             """,
@@ -1463,8 +1612,8 @@ with tab_evidence:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800;">🔬 Clinical Model Evaluation & Deep Learning Architecture (FA-2 Step 6)</h3>
-            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Empirical test metrics evaluated across an unseen 15% holdout partition (1,800 test samples) on the Kaggle Le2i Fall Benchmark dataset.</p>
+            <h3 style="margin:0; font-weight:700;">🔬 Clinical Model Evaluation & Deep Learning Architecture (FA-2 Step 6)</h3>
+            <p style="margin:3px 0 0 0; color:#4B5563; font-size:0.88rem;">Empirical test metrics evaluated across an unseen 15% holdout partition (1,800 test samples) on the Kaggle Le2i Fall Benchmark dataset.</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1493,40 +1642,40 @@ with tab_evidence:
     with m_col1:
         st.markdown(
             """
-            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #10b981; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(16,185,129,0.08);">
-                <div style="font-size:0.75rem; font-weight:700; color:#047857; letter-spacing:0.5px;">➔ ACCURACY</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#059669; margin:4px 0;">100.00%</div>
-                <div style="font-size:0.74rem; color:#475569;">Overall prediction correctness across all 6 classes.</div>
+            <div style="background:#FFFFFF; border:1px solid #E5E7DF; border-left:4px solid #5E8B7A; padding:16px; border-radius:12px; box-shadow:0 1px 3px rgba(31,41,51,0.04);">
+                <div style="font-size:0.75rem; font-weight:700; color:#5E8B7A; letter-spacing:0.5px;">➔ ACCURACY</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#1F2933; margin:4px 0;">100.00%</div>
+                <div style="font-size:0.74rem; color:#4B5563;">Overall prediction correctness across all 6 classes.</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col2:
         st.markdown(
             """
-            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #10b981; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(16,185,129,0.08);">
-                <div style="font-size:0.75rem; font-weight:700; color:#047857; letter-spacing:0.5px;">➔ PRECISION</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#059669; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#475569;">Detected fall alerts that were real falls (0 false alarms).</div>
+            <div style="background:#FFFFFF; border:1px solid #E5E7DF; border-left:4px solid #489975; padding:16px; border-radius:12px; box-shadow:0 1px 3px rgba(31,41,51,0.04);">
+                <div style="font-size:0.75rem; font-weight:700; color:#489975; letter-spacing:0.5px;">➔ PRECISION</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#1F2933; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#4B5563;">Detected fall alerts that were real falls (0 false alarms).</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col3:
         st.markdown(
             """
-            <div style="background:#fffbeb; border:1px solid #fde68a; border-left:4px solid #f59e0b; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(245,158,11,0.08);">
-                <div style="font-size:0.75rem; font-weight:700; color:#b45309; letter-spacing:0.5px;">➔ RECALL</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#d97706; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#475569;">Actual falls successfully detected (0 missed falls).</div>
+            <div style="background:#FFFFFF; border:1px solid #E5E7DF; border-left:4px solid #D99B52; padding:16px; border-radius:12px; box-shadow:0 1px 3px rgba(31,41,51,0.04);">
+                <div style="font-size:0.75rem; font-weight:700; color:#D99B52; letter-spacing:0.5px;">➔ RECALL</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#1F2933; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#4B5563;">Actual falls successfully detected (0 missed falls).</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col4:
         st.markdown(
             """
-            <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-left:4px solid #8b5cf6; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(139,92,246,0.08);">
-                <div style="font-size:0.75rem; font-weight:700; color:#6d28d9; letter-spacing:0.5px;">➔ F1-SCORE</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#7c3aed; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#475569;">Harmonic balance between Precision and Recall.</div>
+            <div style="background:#FFFFFF; border:1px solid #E5E7DF; border-left:4px solid #8EA8C3; padding:16px; border-radius:12px; box-shadow:0 1px 3px rgba(31,41,51,0.04);">
+                <div style="font-size:0.75rem; font-weight:700; color:#8EA8C3; letter-spacing:0.5px;">➔ F1-SCORE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#1F2933; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#4B5563;">Harmonic balance between Precision and Recall.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -1548,8 +1697,8 @@ with tab_protocols:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800;">🏥 Telehealth Protocols, Maintenance & Retraining (FA-2 Step 8)</h3>
-            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Clinical Standard Operating Procedures (SOPs), real-world deployment challenges, and continuous retraining pipelines.</p>
+            <h3 style="margin:0; font-weight:700;">🏥 Telehealth Protocols, Maintenance & Retraining (FA-2 Step 8)</h3>
+            <p style="margin:3px 0 0 0; color:#4B5563; font-size:0.88rem;">Clinical Standard Operating Procedures (SOPs), real-world deployment challenges, and continuous retraining pipelines.</p>
         </div>
         """,
         unsafe_allow_html=True

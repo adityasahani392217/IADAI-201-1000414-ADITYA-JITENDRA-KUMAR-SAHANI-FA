@@ -193,28 +193,28 @@ The complete visual storyboard, system architecture sketches, UI mockups, and de
 - **Random Forest Baseline (160 Estimators):** Selected as a resilient, non-parametric comparative benchmark that provides Gini-based feature importance verification.
 
 ### Step 5: Model Training & Hyperparameter Tuning
-- **Dataset Partitioning:** 70% Training (4,200 samples), 15% Validation (900 samples), 15% Holdout Testing (900 samples).
+- **Dataset Partitioning:** 70% Training (8,400 samples), 15% Validation (1,800 samples), 15% Holdout Testing (1,800 samples) across 12,000 clinical samples.
 - **Architecture Specifications:**
   - Input Layer: 142 features
   - Hidden Layer 1: 256 units + BatchNorm1d + ReLU + Dropout(0.3)
   - Hidden Layer 2: 128 units + BatchNorm1d + ReLU + Dropout(0.21)
   - Hidden Layer 3: 64 units + BatchNorm1d + ReLU + Dropout(0.1)
   - Output Layer: 6 units (logits for the 6 classes)
-- **Training Strategy:** 40 epochs with Adam optimizer (`lr=0.001`, `weight_decay=1e-4`), StepLR scheduler (`step_size=12`, `gamma=0.5`), and CrossEntropyLoss.
+- **Training Strategy:** 40 epochs with AdamW optimizer (`lr=0.001`, `weight_decay=1e-4`), StepLR scheduler (`step_size=12`, `gamma=0.5`), and CrossEntropyLoss.
 
 ### Step 6: Evaluation Metrics on Unseen Test Set
-The model was tested on 900 unseen samples across all 6 classes:
+The model was tested on 1,800 unseen samples across all 6 classes:
 
 | Target Postural Class | Precision | Recall | F1-Score | Support |
 | :--- | :---: | :---: | :---: | :---: |
-| **Fall Detected** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Off Balance** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Normal Activity** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Sitting** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Standing** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Walking** | **1.0000** | **1.0000** | **1.0000** | 150 |
-| **Macro Average** | **1.0000** | **1.0000** | **1.0000** | **900** |
-| **Overall Accuracy** | **100.00%** | | | **900** |
+| **Fall Detected** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Off Balance** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Normal Activity** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Sitting** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Standing** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Walking** | **1.0000** | **1.0000** | **1.0000** | 300 |
+| **Macro Average** | **1.0000** | **1.0000** | **1.0000** | **1,800** |
+| **Overall Accuracy** | **100.00%** | | | **1,800** |
 
 All evaluation figures are saved in the [`assets/`](assets/) directory:
 - [Confusion Matrix Heatmap](assets/confusion_matrix.png)
@@ -224,11 +224,12 @@ All evaluation figures are saved in the [`assets/`](assets/) directory:
 
 ### Step 7: Cloud Deployment on Streamlit Community Cloud
 1. The repository is configured with `app.py`, `pose_landmarker.task`, `logo.png`, `requirements.txt`, and `packages.txt`.
-2. Connected to Streamlit Community Cloud:
+2. Responsive widescreen HD viewport (1280x720 video feed, 1120px max block container) for clear visualization.
+3. Connected to Streamlit Community Cloud:
    - **Repository:** `adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA`
    - **Branch:** `main`
    - **Main file path:** `app.py`
-3. Accessible via: [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+4. Accessible via: [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
 
 ### Step 8: Maintenance & Production Monitoring
 1. **Camera Angle & Lighting Compensation:** Real-time visibility threshold checking ($>0.50$) prevents spurious detections when limbs are occluded.

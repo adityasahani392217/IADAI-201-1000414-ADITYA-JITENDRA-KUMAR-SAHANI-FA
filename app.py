@@ -35,7 +35,7 @@ LOGO_PATH = ROOT / "logo.png"
 st.set_page_config(
     page_title="SafeFall AI - Aditya Sahani (1000414)",
     page_icon="🛡️",
-    layout="centered"
+    layout="wide"
 )
 
 
@@ -88,6 +88,12 @@ def paint_page(theme_name):
             background-attachment: fixed;
             color: {text_color};
         }}
+        .main .block-container {{
+            max-width: 1120px !important;
+            padding-top: 1.8rem !important;
+            padding-bottom: 3rem !important;
+            margin: 0 auto !important;
+        }}
         [data-testid="stHeader"] {{
             background: transparent;
         }}
@@ -103,6 +109,32 @@ def paint_page(theme_name):
             font-size: 0.85rem;
             margin-bottom: 8px;
             border: 1px solid rgba(255, 255, 255, 0.18);
+        }}
+        /* Large widescreen camera and video viewports */
+        div[data-testid="stCameraInput"] {{
+            width: 100% !important;
+            max-width: 960px !important;
+            margin: 0.5rem auto !important;
+        }}
+        div[data-testid="stCameraInput"] video {{
+            width: 100% !important;
+            max-height: 600px !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+        }}
+        div[data-testid="stImage"] img {{
+            width: 100% !important;
+            max-height: 600px !important;
+            object-fit: contain !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+        }}
+        iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {{
+            width: 100% !important;
+            min-height: 540px !important;
+            max-height: 680px !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
         }}
         [data-testid="stHtml"]:has(#fall-alarm-setup) {{
             display: none;
@@ -407,6 +439,8 @@ def keep_real_fall(label, false_alarm, tilt, hold):
 
 def draw_pose(frame, landmarks):
     height, width = frame.shape[:2]
+    r = max(4, int(width / 150))
+    lw = max(2, int(width / 260))
     points = []
     links = [
         (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),
@@ -417,10 +451,10 @@ def draw_pose(frame, landmarks):
         x = int(lm.x * width)
         y = int(lm.y * height)
         points.append((x, y))
-        cv2.circle(frame, (x, y), 4, (0, 255, 0), -1)
+        cv2.circle(frame, (x, y), r, (0, 255, 0), -1)
     for a, b in links:
         if a < len(points) and b < len(points):
-            cv2.line(frame, points[a], points[b], (0, 255, 0), 2)
+            cv2.line(frame, points[a], points[b], (0, 255, 120), lw)
 
 
 def read_image_bytes(data):
@@ -441,10 +475,16 @@ ACTIVITY_COLORS = {
 
 
 def paint_label(frame, label):
+    h, w = frame.shape[:2]
     color = ACTIVITY_COLORS.get(label, (40, 180, 40))
-    cv2.rectangle(frame, (6, 8), (280, 48), (20, 20, 20), -1)
+    scale = max(0.85, w / 680.0)
+    thickness = max(2, int(scale * 2.2))
+    box_w = int(320 * scale)
+    box_h = int(54 * scale)
+    cv2.rectangle(frame, (10, 10), (box_w, box_h), (20, 20, 24), -1)
+    cv2.rectangle(frame, (10, 10), (box_w, box_h), color, 2)
     display_text = label.upper()
-    cv2.putText(frame, display_text, (12, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+    cv2.putText(frame, display_text, (20, int(38 * scale)), cv2.FONT_HERSHEY_SIMPLEX, scale * 0.9, color, thickness, cv2.LINE_AA)
 
 
 def predict_frame(pose, frame, last_tilt=None, hips=None, feet=None):
@@ -999,7 +1039,11 @@ else:
             key="live-camera",
             video_frame_callback=on_frame,
             media_stream_constraints={
-                "video": {"width": {"ideal": 480}, "height": {"ideal": 360}, "facingMode": "user"},
+                "video": {
+                    "width": {"ideal": 1280, "min": 640},
+                    "height": {"ideal": 720, "min": 480},
+                    "facingMode": "user",
+                },
                 "audio": False,
             },
             rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},

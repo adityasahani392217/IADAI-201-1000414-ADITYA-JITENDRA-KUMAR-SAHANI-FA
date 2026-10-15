@@ -9,7 +9,7 @@
 
 ## 🎬 Recording Setup Checklist Before You Press Record
 1. **Tabs to Have Open:**
-   - **Tab 1:** Live Streamlit App (`https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/` or `localhost:8501`)
+   - **Tab 1:** Live Streamlit App (`https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/` or `localhost:8501`)
    - **Tab 2:** Google Colab Notebook (`SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb`)
    - **Tab 3:** Canva Storyboard Presentation (`https://canva.link/7iadcf1w4rsmwx3`)
    - **Tab 4:** Kaggle Le2i Dataset (`https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data`)

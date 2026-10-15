@@ -1,7 +1,7 @@
 # SafeFall AI - AI-Powered Elderly Fall Detection & Healthcare Monitoring System
 ### Formative Assessment-2 (FA-2) | Machine Learning & Deep Learning (CRS AI)
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
 [![Storyboard Canva](https://img.shields.io/badge/Canva-Storyboard%20Presentation-00C4CC?logo=canva&logoColor=white)](https://canva.link/7iadcf1w4rsmwx3)
 [![Kaggle Dataset](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
@@ -11,7 +11,7 @@
 
 ### 🌐 Live Deployment & Project Links
 - **🎨 Interactive Presentation & Storyboard (Canva):** [https://canva.link/7iadcf1w4rsmwx3](https://canva.link/7iadcf1w4rsmwx3)
-- **🚀 Live Streamlit Web Application:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+- **🚀 Live Streamlit Web Application:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/)
 - **📓 Google Colab Training Notebook:** [Open in Google Colab](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
 - **📦 Kaggle Le2i Fall Detection Dataset:** [tuyenldvn/falldataset-imvia](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
 - **🐙 GitHub Source Repository:** [https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
@@ -266,7 +266,7 @@ The model was tested against the 1,800 unseen holdout test samples:
 
 ### Step 7: Model Deployment using Streamlit (5 Marks)
 The interactive healthcare web application is deployed on **Streamlit Community Cloud**:
-- **Live Application Link:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+- **Live Application Link:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/)
 
 #### Core Dashboard Capabilities:
 - **Multi-Modal Uploads:** Supports static photo uploads (JPG, PNG), video uploads (MP4, AVI, MOV), camera snapshot capture, and full-duplex live WebRTC video streaming.

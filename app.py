@@ -35,416 +35,368 @@ LOGO_PATH = ROOT / "logo.png"
 
 # Page configuration
 st.set_page_config(
-    page_title="SafeFall AI | Clinical Sentinel — Aditya Sahani",
+    page_title="SafeFall AI | Aditya Sahani (1000414)",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# World-Class Clinical Dark Glassmorphic Theme CSS
+
+def current_theme():
+    saved = st.query_params.get("theme")
+    if saved in ("light", "dark"):
+        return saved
+    try:
+        detected = st.context.theme.type
+        if detected in ("light", "dark"):
+            return detected
+    except Exception:
+        pass
+    return "light"  # Default to user's preferred off-white and green theme
+
+
+def paint_page(theme_name):
+    if theme_name == "dark":
+        base = "#141a24"
+        blooms = """
+            radial-gradient(circle at 10% 8%, rgba(16, 185, 129, 0.20), transparent 45%),
+            radial-gradient(circle at 92% 10%, rgba(56, 189, 248, 0.16), transparent 45%),
+            radial-gradient(circle at 100% 78%, rgba(99, 102, 241, 0.15), transparent 48%),
+            radial-gradient(circle at 0% 86%, rgba(16, 185, 129, 0.16), transparent 46%),
+            radial-gradient(circle at 48% 42%, rgba(245, 158, 11, 0.12), transparent 40%),
+            radial-gradient(circle at 72% 58%, rgba(16, 185, 129, 0.22), transparent 44%)
+        """
+        card_bg = "rgba(22, 30, 44, 0.88)"
+        card_border = "rgba(16, 185, 129, 0.25)"
+        text_color = "#f1f5f9"
+        subtext_color = "#94a3b8"
+        navbar_bg = "rgba(18, 25, 38, 0.85)"
+        tab_bg = "rgba(22, 30, 44, 0.75)"
+        tab_active_bg = "rgba(16, 185, 129, 0.22)"
+        tab_active_text = "#34d399"
+    else:
+        # User's preferred off-white and soft medical green aesthetic
+        base = "#fbfcfb"
+        blooms = """
+            radial-gradient(circle at 8% 0%, rgba(16, 185, 129, 0.16), transparent 45%),
+            radial-gradient(circle at 94% 6%, rgba(52, 211, 153, 0.14), transparent 44%),
+            radial-gradient(circle at 100% 78%, rgba(14, 165, 233, 0.10), transparent 48%),
+            radial-gradient(circle at 0% 86%, rgba(16, 185, 129, 0.14), transparent 46%),
+            radial-gradient(circle at 48% 42%, rgba(245, 158, 11, 0.08), transparent 40%),
+            radial-gradient(circle at 72% 58%, rgba(16, 185, 129, 0.20), transparent 44%)
+        """
+        card_bg = "rgba(255, 255, 255, 0.92)"
+        card_border = "rgba(16, 185, 129, 0.24)"
+        text_color = "#0f172a"
+        subtext_color = "#475569"
+        navbar_bg = "rgba(255, 255, 255, 0.92)"
+        tab_bg = "rgba(241, 245, 242, 0.85)"
+        tab_active_bg = "#ecfdf5"
+        tab_active_text = "#047857"
+
+    st.markdown(
+        f"""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        html, body, [class*="css"], .stApp {{
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            background-color: {base} !important;
+            color: {text_color} !important;
+        }}
+
+        .stApp {{
+            background-image: {blooms} !important;
+            background-attachment: fixed !important;
+        }}
+
+        #MainMenu, footer, header, [data-testid="stHeader"] {{
+            display: none !important;
+        }}
+
+        .main .block-container {{
+            max-width: 1220px !important;
+            padding-top: 1.2rem !important;
+            padding-bottom: 3.5rem !important;
+            margin: 0 auto !important;
+        }}
+
+        /* Clean Navbar */
+        .sentinel-nav {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 1.1rem 1.6rem;
+            background: {navbar_bg};
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid {card_border};
+            border-radius: 18px;
+            margin-bottom: 1.4rem;
+            box-shadow: 0 4px 20px -2px rgba(16, 185, 129, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+        }}
+        .brand-box {{
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }}
+        .brand-icon {{
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }}
+        .brand-title {{
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: {text_color};
+            margin: 0;
+            line-height: 1.2;
+        }}
+        .brand-sub {{
+            font-size: 0.84rem;
+            color: {subtext_color};
+            font-weight: 500;
+            margin-top: 2px;
+        }}
+        .status-badge {{
+            display: inline-flex;
+            align-items: center;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 5px 12px;
+            border-radius: 9999px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }}
+        .pulse-circle {{
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 7px;
+            box-shadow: 0 0 10px #10b981;
+            animation: pulse-ring 2s infinite ease-in-out;
+        }}
+        @keyframes pulse-ring {{
+            0%, 100% {{ transform: scale(1); opacity: 1; }}
+            50% {{ transform: scale(1.3); opacity: 0.6; }}
+        }}
+        .candidate-tag {{
+            display: inline-flex;
+            align-items: center;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid {card_border};
+            color: {text_color};
+            padding: 5px 12px;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }}
+
+        /* Telemetry KPI Cards */
+        .kpi-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-bottom: 1.5rem;
+        }}
+        .kpi-box {{
+            background: {card_bg};
+            backdrop-filter: blur(14px);
+            border: 1px solid {card_border};
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.08);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }}
+        .kpi-box:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.16);
+        }}
+        .kpi-top-bar {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }}
+        .kpi-lbl {{
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: {subtext_color};
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+        }}
+        .kpi-num {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.1rem;
+            font-weight: 800;
+            margin-top: 5px;
+            line-height: 1.1;
+        }}
+        .kpi-note {{
+            font-size: 0.75rem;
+            color: {subtext_color};
+            margin-top: 4px;
+        }}
+
+        /* Modern Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 8px;
+            background: {tab_bg} !important;
+            padding: 6px;
+            border-radius: 14px;
+            border: 1px solid {card_border};
+            margin-bottom: 1.5rem;
+        }}
+        .stTabs [data-baseweb="tab"] {{
+            height: 42px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: {subtext_color} !important;
+            padding: 0 20px;
+            border: none !important;
+            background: transparent !important;
+            transition: all 0.2s ease;
+        }}
+        .stTabs [data-baseweb="tab"]:hover {{
+            color: {text_color} !important;
+            background: rgba(16, 185, 129, 0.08) !important;
+        }}
+        .stTabs [aria-selected="true"] {{
+            background: {tab_active_bg} !important;
+            color: {tab_active_text} !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.16);
+        }}
+        .stTabs [data-baseweb="tab-border"] {{
+            display: none !important;
+        }}
+
+        /* Buttons & Link Buttons */
+        .stButton > button {{
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            font-size: 0.88rem !important;
+            padding: 0.65rem 1.2rem !important;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25) !important;
+            transition: all 0.2s ease !important;
+        }}
+        .stButton > button:hover {{
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35) !important;
+        }}
+        .stLinkButton > a {{
+            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            font-size: 0.88rem !important;
+            padding: 0.65rem 1.2rem !important;
+            text-decoration: none !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25) !important;
+            transition: all 0.2s ease !important;
+        }}
+        .stLinkButton > a:hover {{
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35) !important;
+        }}
+
+        /* Viewport Sizing */
+        div[data-testid="stCameraInput"], div[data-testid="stCameraInput"] video {{
+            width: 100% !important;
+            max-width: 980px !important;
+            border-radius: 16px !important;
+            margin: 0 auto !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+            border: 1px solid {card_border} !important;
+        }}
+        div[data-testid="stImage"] img {{
+            width: 100% !important;
+            max-height: 560px !important;
+            object-fit: contain !important;
+            border-radius: 16px !important;
+            margin: 0 auto !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid {card_border} !important;
+        }}
+        iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {{
+            width: 100% !important;
+            min-height: 560px !important;
+            border-radius: 16px !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+            border: 1px solid {card_border} !important;
+        }}
+
+        [data-testid="stHtml"]:has(#fall-alarm-setup) {{
+            display: none;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def switch_theme(choice):
+    stored = "Light" if choice == "Light" else "Dark"
+    value = stored.lower()
+    st.html(
+        f"""
+        <script>
+        const key = "stActiveTheme-" + window.location.pathname + "-v2";
+        localStorage.setItem(key, JSON.stringify("{stored}"));
+        const url = new URL(window.location.href);
+        url.searchParams.set("theme", "{value}");
+        window.location.replace(url.toString());
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+
+look = current_theme()
+paint_page(look)
+
+
+# Header Section with Logo, Title, and Theme Switcher
 st.markdown(
     """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
-    /* Global Typography & Background Reset */
-    html, body, [class*="css"], .stApp {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        background-color: #060913 !important;
-        color: #f1f5f9 !important;
-    }
-
-    .stApp {
-        background: 
-            radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 40%),
-            radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.10) 0%, transparent 40%),
-            radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
-            #060913 !important;
-        background-attachment: fixed !important;
-    }
-
-    /* Hide Default Clunky Streamlit Chrome */
-    #MainMenu, footer, header, [data-testid="stHeader"] {
-        display: none !important;
-    }
-
-    /* App Container Sizing */
-    .main .block-container {
-        max-width: 1260px !important;
-        padding-top: 1rem !important;
-        padding-bottom: 3rem !important;
-        margin: 0 auto !important;
-    }
-
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: #090d1a;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #1e293b;
-        border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #334155;
-    }
-
-    /* Clinical Executive Navbar */
-    .sentinel-header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 1.2rem 1.8rem;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 12px 35px -8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    }
-    .brand-group {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-    .brand-icon-shield {
-        width: 46px;
-        height: 46px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
-    }
-    .brand-text h1 {
-        font-size: 1.65rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.6px !important;
-        background: linear-gradient(135deg, #ffffff 0%, #38bdf8 50%, #818cf8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0 !important;
-        line-height: 1.2 !important;
-    }
-    .brand-text p {
-        font-size: 0.85rem !important;
-        color: #94a3b8 !important;
-        margin: 2px 0 0 0 !important;
-        font-weight: 500 !important;
-    }
-    .header-badges {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .sentinel-pill {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(16, 185, 129, 0.12);
-        border: 1px solid rgba(16, 185, 129, 0.35);
-        color: #34d399;
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-    }
-    .pulse-dot {
-        width: 8px;
-        height: 8px;
-        background: #10b981;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 8px;
-        box-shadow: 0 0 12px #10b981;
-        animation: pulseAnimation 2s infinite ease-in-out;
-    }
-    @keyframes pulseAnimation {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.3); opacity: 0.6; }
-    }
-    .author-pill {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: #cbd5e1;
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    /* Top Telemetry KPI Cards */
-    .kpi-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 14px;
-        margin-bottom: 1.6rem;
-    }
-    .kpi-card {
-        background: rgba(15, 23, 42, 0.65);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 16px;
-        padding: 16px 20px;
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
-    }
-    .kpi-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.16);
-        box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.6);
-    }
-    .kpi-stripe {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-    }
-    .kpi-title {
-        font-size: 0.74rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #94a3b8;
-        font-weight: 700;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .kpi-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 2.1rem;
-        font-weight: 800;
-        margin-top: 6px;
-        line-height: 1.1;
-    }
-    .kpi-sub {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin-top: 4px;
-        font-weight: 500;
-    }
-
-    /* Sleek Modern Tab Bar Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: rgba(15, 23, 42, 0.65) !important;
-        backdrop-filter: blur(16px) !important;
-        padding: 6px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        margin-bottom: 1.6rem;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 44px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.88rem;
-        color: #94a3b8 !important;
-        padding: 0 20px;
-        border: none !important;
-        background: transparent !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #f8fafc !important;
-        background: rgba(255, 255, 255, 0.04) !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(14, 165, 233, 0.22) 0%, rgba(99, 102, 241, 0.22) 100%) !important;
-        color: #38bdf8 !important;
-        border: 1px solid rgba(56, 189, 248, 0.45) !important;
-        box-shadow: 0 4px 16px rgba(14, 165, 233, 0.22);
-    }
-    .stTabs [data-baseweb="tab-border"] {
-        display: none !important;
-    }
-
-    /* Segmented Control Styling */
-    div[data-testid="stSegmentedControl"] {
-        background: rgba(15, 23, 42, 0.6) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        padding: 4px !important;
-    }
-    div[data-testid="stSegmentedControl"] button {
-        border-radius: 8px !important;
-        border: none !important;
-        font-weight: 600 !important;
-        font-size: 0.85rem !important;
-        transition: all 0.2s ease !important;
-    }
-
-    /* Buttons Styling */
-    .stButton > button {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-        color: #e2e8f0 !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 0.88rem !important;
-        padding: 0.65rem 1.2rem !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-    }
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #334155 0%, #1e293b 100%) !important;
-        border-color: rgba(56, 189, 248, 0.5) !important;
-        color: #38bdf8 !important;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(14, 165, 233, 0.25) !important;
-    }
-    .stLinkButton > a {
-        background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 0.88rem !important;
-        padding: 0.65rem 1.2rem !important;
-        transition: all 0.2s ease !important;
-        text-decoration: none !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35) !important;
-    }
-    .stLinkButton > a:hover {
-        background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 8px 24px rgba(2, 132, 199, 0.5) !important;
-    }
-
-    /* File Uploader Custom Dark Glass */
-    [data-testid="stFileUploader"] {
-        background: rgba(15, 23, 42, 0.45) !important;
-        border: 2px dashed rgba(56, 189, 248, 0.3) !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
-        transition: border-color 0.2s ease !important;
-    }
-    [data-testid="stFileUploader"]:hover {
-        border-color: rgba(56, 189, 248, 0.7) !important;
-    }
-
-    /* Video and Image Display */
-    div[data-testid="stCameraInput"], div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        max-width: 980px !important;
-        border-radius: 16px !important;
-        margin: 0 auto !important;
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    }
-    div[data-testid="stImage"] img {
-        width: 100% !important;
-        max-height: 560px !important;
-        object-fit: contain !important;
-        border-radius: 16px !important;
-        margin: 0 auto !important;
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    }
-    iframe[title*="streamlit_webrtc"], iframe[title*="webrtc"] {
-        width: 100% !important;
-        min-height: 560px !important;
-        border-radius: 16px !important;
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    }
-
-    /* Content Cards */
-    .clinical-card {
-        background: rgba(15, 23, 42, 0.65);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        padding: 22px;
-        margin-bottom: 1.4rem;
-        box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.5);
-    }
-    .clinical-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        padding-bottom: 10px;
-    }
-    .clinical-card-title {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #f8fafc;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Telemetry Data Grid */
-    .telemetry-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 12px;
-        margin-top: 12px;
-    }
-    .telemetry-cell {
-        background: rgba(2, 6, 23, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        padding: 12px 14px;
-    }
-    .telemetry-cell-label {
-        font-size: 0.72rem;
-        color: #94a3b8;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .telemetry-cell-val {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.25rem;
-        font-weight: 700;
-        margin-top: 3px;
-    }
-
-    [data-testid="stHtml"]:has(#fall-alarm-setup) {
-        display: none;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Header Section
-st.markdown(
-    """
-    <div class="sentinel-header">
-        <div class="brand-group">
-            <div class="brand-icon-shield">🛡️</div>
-            <div class="brand-text">
-                <h1>SafeFall AI Sentinel</h1>
-                <p>Clinical Postural Kinematics & Elderly Fall Detection System</p>
+    <div class="sentinel-nav">
+        <div class="brand-box">
+            <div class="brand-icon">🛡️</div>
+            <div>
+                <div class="brand-title">SafeFall AI Sentinel</div>
+                <div class="brand-sub">Clinical Postural Kinematics & Elderly Fall Detection System</div>
             </div>
         </div>
-        <div class="header-badges">
-            <div class="sentinel-pill"><span class="pulse-dot"></span>SENTINEL ACTIVE (30 FPS)</div>
-            <div class="author-pill">👤 Aditya Sahani (1000414) | FA-2</div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="status-badge"><span class="pulse-circle"></span>SENTINEL ACTIVE (30 FPS)</div>
+            <div class="candidate-tag">👤 Aditya Sahani (1000414) | FA-2</div>
         </div>
     </div>
     """,
@@ -749,7 +701,7 @@ BAR_COLORS = {
     "fall": "#ef4444",
     "off balance": "#f59e0b",
     "sitting": "#3b82f6",
-    "standing": "#a855f7",
+    "standing": "#8b5cf6",
     "walking": "#06b6d4",
     "normal": "#10b981",
 }
@@ -774,15 +726,15 @@ def show_bars(rows, value_name, value_label, top, number_format):
         .encode(
             y=alt.Y(
                 "activity:N",
-                title="Clinical Posture",
+                title="Clinical Activity",
                 sort=order,
-                axis=alt.Axis(labelLimit=220, labelColor="#cbd5e1", titleColor="#94a3b8"),
+                axis=alt.Axis(labelLimit=220, labelColor="#475569", titleColor="#0f172a"),
             ),
             x=alt.X(
                 f"{value_name}:Q",
                 title=value_label,
                 scale=alt.Scale(domain=[0, top]),
-                axis=alt.Axis(labelColor="#cbd5e1", titleColor="#94a3b8"),
+                axis=alt.Axis(labelColor="#475569", titleColor="#0f172a"),
             ),
             color=alt.Color(
                 "kind:N",
@@ -802,18 +754,18 @@ def show_bars(rows, value_name, value_label, top, number_format):
 def show_picture(frame, label, tilt=None):
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     st.image(rgb, use_container_width=True)
-    color = BAR_COLORS.get(label, "#38bdf8")
+    color = BAR_COLORS.get(label, "#10b981")
     tilt_str = f"{tilt:.1f}°" if tilt is not None else "N/A"
     st.markdown(
         f"""
-        <div style="background: rgba(15,23,42,0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); padding: 14px 20px; border-radius: 14px; margin-top: 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="background: rgba(255,255,255,0.92); border: 1px solid rgba(16,185,129,0.25); padding: 14px 20px; border-radius: 14px; margin-top: 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow: 0 4px 16px rgba(16,185,129,0.08);">
             <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; font-weight:700;">INFERENCE POSTURE:</span>
+                <span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.8px; color:#64748b; font-weight:700;">INFERENCE POSTURE:</span>
                 <span style="font-size:1.2rem; font-weight:800; color:{color}; letter-spacing:0.3px;">{label.upper()}</span>
             </div>
             <div style="display:flex; align-items:center; gap:14px;">
-                <span style="font-size:0.82rem; color:#94a3b8; font-family:'JetBrains Mono',monospace;">Trunk Tilt: <b style="color:#e2e8f0;">{tilt_str}</b></span>
-                <span style="background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:6px; font-size:0.75rem; color:#64748b; font-family:'JetBrains Mono',monospace;">MediaPipe 33-Keypoint</span>
+                <span style="font-size:0.82rem; color:#475569; font-family:'JetBrains Mono',monospace;">Trunk Tilt: <b style="color:#0f172a;">{tilt_str}</b></span>
+                <span style="background:rgba(16,185,129,0.08); padding:4px 10px; border-radius:6px; font-size:0.75rem; color:#065f46; font-family:'JetBrains Mono',monospace;">MediaPipe 33-Keypoint</span>
             </div>
         </div>
         """,
@@ -821,17 +773,17 @@ def show_picture(frame, label, tilt=None):
     )
 
 def show_confidence(label, confidence):
-    color = BAR_COLORS.get(label, "#38bdf8")
+    color = BAR_COLORS.get(label, "#10b981")
     conf_pct = int(confidence * 100)
     st.markdown(
         f"""
-        <div style="margin-top: 10px; background: rgba(15,23,42,0.6); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; color:#cbd5e1;">
+        <div style="margin-top: 10px; background: rgba(255,255,255,0.85); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; color:#334155;">
                 <span>AI Confidence Probability</span>
                 <span style="color:{color}; font-family:'JetBrains Mono',monospace; font-size:0.95rem;">{conf_pct}%</span>
             </div>
-            <div style="background:rgba(255,255,255,0.08); height:8px; border-radius:4px; overflow:hidden; margin-top:6px;">
-                <div style="background:{color}; width:{conf_pct}%; height:100%; border-radius:4px; box-shadow: 0 0 10px {color}; transition:width 0.4s ease;"></div>
+            <div style="background:rgba(0,0,0,0.06); height:8px; border-radius:4px; overflow:hidden; margin-top:6px;">
+                <div style="background:{color}; width:{conf_pct}%; height:100%; border-radius:4px; transition:width 0.4s ease;"></div>
             </div>
         </div>
         """,
@@ -936,11 +888,11 @@ def sound_alarm(token):
     safe_token = json.dumps(token)
     st.html(
         f"""
-        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 14px; padding: 16px 20px; margin: 14px 0; box-shadow: 0 0 25px rgba(239,68,68,0.25);">
-            <button type="button" id="fall-snooze" style="display:block;width:100%;background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);color:#ffffff;border:0;border-radius:12px;padding:1rem 1.2rem;font:800 1.15rem 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(239,68,68,0.45);transition:all 0.2s;">
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 14px; padding: 16px 20px; margin: 14px 0; box-shadow: 0 4px 20px rgba(239,68,68,0.18);">
+            <button type="button" id="fall-snooze" style="display:block;width:100%;background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);color:#ffffff;border:0;border-radius:12px;padding:1rem 1.2rem;font:800 1.15rem 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(239,68,68,0.35);transition:all 0.2s;">
               🚨 SNOOZE EMERGENCY SIREN
             </button>
-            <p id="fall-alarm-note" style="margin: 10px 0 0 0; text-align:center; font-weight:600; color:#fca5a5; font-size:0.86rem;">Acoustic siren is actively sounding. Click button above to silence.</p>
+            <p id="fall-alarm-note" style="margin: 10px 0 0 0; text-align:center; font-weight:600; color:#dc2626; font-size:0.86rem;">Acoustic siren is actively sounding. Click button above to silence.</p>
         </div>
         <script>
         (function () {{
@@ -958,8 +910,8 @@ def sound_alarm(token):
               if (note) note.textContent = "Acoustic siren is actively sounding. Click button above to snooze.";
             }} else if (quiet) {{
               btn.textContent = "Snoozed (Acoustic Siren Silenced)";
-              btn.style.background = "#1e293b";
-              btn.style.color = "#94a3b8";
+              btn.style.background = "#64748b";
+              btn.style.color = "#ffffff";
               if (note) note.textContent = "Snoozed. Acoustic alarm is currently silenced.";
             }} else {{
               btn.textContent = "Sound Alert Siren";
@@ -1001,12 +953,12 @@ def show_emergency(token="fall"):
     st.session_state["_fall_alarm_shown"] = True
     st.markdown(
         """
-        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.28) 0%, rgba(185, 28, 28, 0.18) 100%); border: 2px solid #ef4444; border-radius: 18px; padding: 22px; margin: 16px 0; box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);">
+        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.08) 100%); border: 2px solid #ef4444; border-radius: 18px; padding: 22px; margin: 16px 0; box-shadow: 0 6px 28px rgba(239, 68, 68, 0.25);">
             <div style="display:flex; align-items:center; gap:16px;">
-                <div style="width:54px; height:54px; border-radius:14px; background:rgba(239,68,68,0.3); border:1px solid #ef4444; display:flex; align-items:center; justify-content:center; font-size:2rem; box-shadow:0 0 20px rgba(239,68,68,0.5);">🚨</div>
+                <div style="width:54px; height:54px; border-radius:14px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; display:flex; align-items:center; justify-content:center; font-size:2rem;">🚨</div>
                 <div>
-                    <h3 style="color:#ef4444; margin:0; font-weight:800; font-size:1.45rem; letter-spacing:-0.4px;">CRITICAL EMERGENCY: FALL INCIDENT DETECTED</h3>
-                    <p style="color:#fca5a5; margin:3px 0 0 0; font-size:0.92rem; font-weight:500;">Patient horizontal recumbency confirmed by biomechanical postural kinematics.</p>
+                    <h3 style="color:#dc2626; margin:0; font-weight:800; font-size:1.45rem; letter-spacing:-0.4px;">CRITICAL EMERGENCY: FALL INCIDENT DETECTED</h3>
+                    <p style="color:#b91c1c; margin:3px 0 0 0; font-size:0.92rem; font-weight:500;">Patient horizontal recumbency confirmed by biomechanical postural kinematics.</p>
                 </div>
             </div>
         </div>
@@ -1048,11 +1000,11 @@ def show_heatmap(counts):
         y=alt.Y("Verified:N", sort=[x.upper() for x in MATRIX_LABELS], title="Verified Clinical State"),
     )
     heatmap = base.mark_rect(cornerRadius=4).encode(
-        color=alt.Color("Frames:Q", scale=alt.Scale(scheme="purples", domain=[0, top]), title="Count")
+        color=alt.Color("Frames:Q", scale=alt.Scale(scheme="greens", domain=[0, top]), title="Count")
     )
     text = base.mark_text(baseline="middle").encode(
         text=alt.Text("Frames:Q"),
-        color=alt.condition(alt.datum.Frames > top / 2, alt.value("white"), alt.value("#94a3b8")),
+        color=alt.condition(alt.datum.Frames > top / 2, alt.value("white"), alt.value("#334155")),
     )
     st.altair_chart((heatmap + text).properties(height=280).configure_view(strokeWidth=0), use_container_width=True)
 
@@ -1156,42 +1108,42 @@ def render_monitoring_panel():
     
     st.markdown(
         f"""
-        <div class="kpi-container">
-            <div class="kpi-card">
-                <div class="kpi-stripe" style="background: linear-gradient(90deg, #0ea5e9, #38bdf8);"></div>
-                <div class="kpi-title">
+        <div class="kpi-grid">
+            <div class="kpi-box">
+                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
+                <div class="kpi-lbl">
                     <span>Total Inferences</span>
-                    <span style="color:#38bdf8;">📊</span>
+                    <span style="color:#10b981;">📊</span>
                 </div>
-                <div class="kpi-value" style="color: #38bdf8;">{total}</div>
-                <div class="kpi-sub">Cumulative analyzed frames</div>
+                <div class="kpi-num" style="color: #059669;">{total}</div>
+                <div class="kpi-note">Cumulative analyzed frames</div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-stripe" style="background: linear-gradient(90deg, #ef4444, #f87171);"></div>
-                <div class="kpi-title">
+            <div class="kpi-box">
+                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #ef4444, #dc2626);"></div>
+                <div class="kpi-lbl">
                     <span>Critical Falls</span>
                     <span style="color:#ef4444;">🚨</span>
                 </div>
-                <div class="kpi-value" style="color: #ef4444;">{falls}</div>
-                <div class="kpi-sub">Emergency incidents detected</div>
+                <div class="kpi-num" style="color: #dc2626;">{falls}</div>
+                <div class="kpi-note">Emergency incidents detected</div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-stripe" style="background: linear-gradient(90deg, #10b981, #34d399);"></div>
-                <div class="kpi-title">
+            <div class="kpi-box">
+                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #10b981, #34d399);"></div>
+                <div class="kpi-lbl">
                     <span>Safe Postures</span>
                     <span style="color:#10b981;">✅</span>
                 </div>
-                <div class="kpi-value" style="color: #10b981;">{normal}</div>
-                <div class="kpi-sub">Normal activities verified</div>
+                <div class="kpi-num" style="color: #10b981;">{normal}</div>
+                <div class="kpi-note">Normal activities verified</div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-stripe" style="background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
-                <div class="kpi-title">
+            <div class="kpi-box">
+                <div class="kpi-top-bar" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
+                <div class="kpi-lbl">
                     <span>Model Confidence</span>
                     <span style="color:#f59e0b;">🎯</span>
                 </div>
-                <div class="kpi-value" style="color: #f59e0b;">{conf_pct}%</div>
-                <div class="kpi-sub">Real-time kinematic probability</div>
+                <div class="kpi-num" style="color: #d97706;">{conf_pct}%</div>
+                <div class="kpi-note">Real-time kinematic probability</div>
             </div>
         </div>
         """,
@@ -1214,7 +1166,7 @@ tab_sentinel, tab_telemetry, tab_evidence, tab_protocols = st.tabs([
 ])
 
 with tab_sentinel:
-    col_input, col_ctrl = st.columns([3.5, 1.2])
+    col_input, col_ctrl, col_theme = st.columns([3.2, 1.3, 0.9], vertical_alignment="center")
     with col_input:
         mode = st.segmented_control(
             "Input Mode",
@@ -1225,13 +1177,23 @@ with tab_sentinel:
     with col_ctrl:
         if st.button("ℹ️ System Architecture", use_container_width=True):
             show_about()
+    with col_theme:
+        theme_toggle = st.segmented_control(
+            "Theme",
+            ["Light", "Dark"],
+            default=look.capitalize(),
+            key="theme_mode_selector",
+            label_visibility="collapsed"
+        )
+        if theme_toggle and theme_toggle.lower() != look:
+            switch_theme(theme_toggle)
 
     if mode == "Photo":
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
-                <h4 style="margin:0; font-weight:700; color:#f8fafc;">📷 Static Image Biomechanical Analysis</h4>
-                <p style="margin:2px 0 0 0; color:#94a3b8; font-size:0.85rem;">Upload a patient image to extract 33 landmarks, tilt velocity, and posture classification.</p>
+                <h4 style="margin:0; font-weight:700;">📷 Static Image Biomechanical Analysis</h4>
+                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Upload a patient photo to extract 33 landmarks, tilt velocity, and posture classification.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1249,8 +1211,8 @@ with tab_sentinel:
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
-                <h4 style="margin:0; font-weight:700; color:#f8fafc;">🎥 Video Surveillance Temporal Sequence Analysis</h4>
-                <p style="margin:2px 0 0 0; color:#94a3b8; font-size:0.85rem;">Ingest CCTV footage to analyze continuous postural kinematics across multiple frames.</p>
+                <h4 style="margin:0; font-weight:700;">🎥 Video Surveillance Temporal Sequence Analysis</h4>
+                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Ingest CCTV surveillance sequences to analyze continuous postural kinematics across multiple frames.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1341,8 +1303,8 @@ with tab_sentinel:
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
-                <h4 style="margin:0; font-weight:700; color:#f8fafc;">📸 Web Camera Single Snapshot</h4>
-                <p style="margin:2px 0 0 0; color:#94a3b8; font-size:0.85rem;">Capture an instant high-resolution frame from your web camera for immediate classification.</p>
+                <h4 style="margin:0; font-weight:700;">📸 Web Camera Single Snapshot</h4>
+                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Capture an instant high-resolution frame from your web camera for immediate classification.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1360,8 +1322,8 @@ with tab_sentinel:
         st.markdown(
             """
             <div style="margin: 8px 0 14px 0;">
-                <h4 style="margin:0; font-weight:700; color:#f8fafc;">📡 Full-Duplex Real-Time WebRTC Video Stream</h4>
-                <p style="margin:2px 0 0 0; color:#94a3b8; font-size:0.85rem;">Low-latency live stream with continuous MediaPipe keypoint tracking at 30 FPS.</p>
+                <h4 style="margin:0; font-weight:700;">📡 Full-Duplex Real-Time WebRTC Video Stream</h4>
+                <p style="margin:2px 0 0 0; color:#475569; font-size:0.86rem;">Low-latency live stream with continuous MediaPipe keypoint tracking at 30 FPS.</p>
             </div>
             """,
             unsafe_allow_html=True
@@ -1445,8 +1407,8 @@ with tab_telemetry:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800; color:#f8fafc;">📊 Continuous Telehealth Stream Analytics</h3>
-            <p style="margin:3px 0 0 0; color:#94a3b8; font-size:0.88rem;">Live session activity frequencies, distribution charts, and connected telehealth pipeline telemetry.</p>
+            <h3 style="margin:0; font-weight:800;">📊 Continuous Telehealth Stream Analytics</h3>
+            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Live session activity frequencies, distribution charts, and connected telehealth pipeline telemetry.</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1474,23 +1436,23 @@ with tab_telemetry:
     with col_t2:
         st.markdown("#### Telehealth System Status")
         st.markdown(
-            """
-            <div style="background:rgba(15,23,42,0.7); border:1px solid rgba(255,255,255,0.08); padding:18px; border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
-                    <span style="color:#94a3b8; font-size:0.86rem; font-weight:600;">Surveillance Stream</span>
-                    <span style="color:#34d399; font-weight:700; font-size:0.86rem;">● Online (30 FPS)</span>
+            f"""
+            <div style="background:{card_bg}; border:1px solid {card_border}; padding:18px; border-radius:14px; box-shadow:0 4px 16px rgba(16,185,129,0.08);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
+                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">Surveillance Stream</span>
+                    <span style="color:#059669; font-weight:700; font-size:0.86rem;">● Online (30 FPS)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
-                    <span style="color:#94a3b8; font-size:0.86rem; font-weight:600;">MediaPipe 33-Keypoint Pipeline</span>
-                    <span style="color:#38bdf8; font-weight:700; font-size:0.86rem;">Active (CPU Lite)</span>
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
+                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">MediaPipe 33-Keypoint Pipeline</span>
+                    <span style="color:#0284c7; font-weight:700; font-size:0.86rem;">Active (CPU Lite)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
-                    <span style="color:#94a3b8; font-size:0.86rem; font-weight:600;">Acoustic Siren Synthesizer</span>
-                    <span style="color:#fbbf24; font-weight:700; font-size:0.86rem;">Armed (Dual 880/520 Hz)</span>
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
+                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">Acoustic Siren Synthesizer</span>
+                    <span style="color:#d97706; font-weight:700; font-size:0.86rem;">Armed (Dual 880/520 Hz)</span>
                 </div>
                 <div style="display:flex; justify-content:space-between;">
-                    <span style="color:#94a3b8; font-size:0.86rem; font-weight:600;">112 Telehealth Emergency Line</span>
-                    <span style="color:#f87171; font-weight:700; font-size:0.86rem;">Ready (Instant Dial)</span>
+                    <span style="color:#475569; font-size:0.86rem; font-weight:600;">112 Telehealth Emergency Line</span>
+                    <span style="color:#dc2626; font-weight:700; font-size:0.86rem;">Ready (Instant Dial)</span>
                 </div>
             </div>
             """,
@@ -1501,8 +1463,8 @@ with tab_evidence:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800; color:#f8fafc;">🔬 Clinical Model Evaluation & Deep Learning Architecture (FA-2 Step 6)</h3>
-            <p style="margin:3px 0 0 0; color:#94a3b8; font-size:0.88rem;">Empirical test metrics evaluated across an unseen 15% holdout partition (1,800 test samples) on the Kaggle Le2i Fall Benchmark dataset.</p>
+            <h3 style="margin:0; font-weight:800;">🔬 Clinical Model Evaluation & Deep Learning Architecture (FA-2 Step 6)</h3>
+            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Empirical test metrics evaluated across an unseen 15% holdout partition (1,800 test samples) on the Kaggle Le2i Fall Benchmark dataset.</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1531,40 +1493,40 @@ with tab_evidence:
     with m_col1:
         st.markdown(
             """
-            <div style="background:rgba(14,165,233,0.1); border:1px solid rgba(14,165,233,0.3); border-left:4px solid #0ea5e9; padding:16px; border-radius:12px; box-shadow:0 4px 16px rgba(14,165,233,0.15);">
-                <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; letter-spacing:0.5px;">➔ ACCURACY</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#0ea5e9; margin:4px 0;">100.00%</div>
-                <div style="font-size:0.74rem; color:#94a3b8;">Overall prediction correctness across all 6 classes.</div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #10b981; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(16,185,129,0.08);">
+                <div style="font-size:0.75rem; font-weight:700; color:#047857; letter-spacing:0.5px;">➔ ACCURACY</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#059669; margin:4px 0;">100.00%</div>
+                <div style="font-size:0.74rem; color:#475569;">Overall prediction correctness across all 6 classes.</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col2:
         st.markdown(
             """
-            <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-left:4px solid #10b981; padding:16px; border-radius:12px; box-shadow:0 4px 16px rgba(16,185,129,0.15);">
-                <div style="font-size:0.75rem; font-weight:700; color:#34d399; letter-spacing:0.5px;">➔ PRECISION</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#10b981; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#94a3b8;">Detected fall alerts that were real falls (0 false alarms).</div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #10b981; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(16,185,129,0.08);">
+                <div style="font-size:0.75rem; font-weight:700; color:#047857; letter-spacing:0.5px;">➔ PRECISION</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#059669; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#475569;">Detected fall alerts that were real falls (0 false alarms).</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col3:
         st.markdown(
             """
-            <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-left:4px solid #f59e0b; padding:16px; border-radius:12px; box-shadow:0 4px 16px rgba(245,158,11,0.15);">
-                <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; letter-spacing:0.5px;">➔ RECALL</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#f59e0b; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#94a3b8;">Actual falls successfully detected (0 missed falls).</div>
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-left:4px solid #f59e0b; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(245,158,11,0.08);">
+                <div style="font-size:0.75rem; font-weight:700; color:#b45309; letter-spacing:0.5px;">➔ RECALL</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#d97706; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#475569;">Actual falls successfully detected (0 missed falls).</div>
             </div>
             """, unsafe_allow_html=True
         )
     with m_col4:
         st.markdown(
             """
-            <div style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-left:4px solid #8b5cf6; padding:16px; border-radius:12px; box-shadow:0 4px 16px rgba(139,92,246,0.15);">
-                <div style="font-size:0.75rem; font-weight:700; color:#a78bfa; letter-spacing:0.5px;">➔ F1-SCORE</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#8b5cf6; margin:4px 0;">1.0000</div>
-                <div style="font-size:0.74rem; color:#94a3b8;">Harmonic balance between Precision and Recall.</div>
+            <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-left:4px solid #8b5cf6; padding:16px; border-radius:12px; box-shadow:0 2px 10px rgba(139,92,246,0.08);">
+                <div style="font-size:0.75rem; font-weight:700; color:#6d28d9; letter-spacing:0.5px;">➔ F1-SCORE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:800; color:#7c3aed; margin:4px 0;">1.0000</div>
+                <div style="font-size:0.74rem; color:#475569;">Harmonic balance between Precision and Recall.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -1586,8 +1548,8 @@ with tab_protocols:
     st.markdown(
         """
         <div style="margin: 4px 0 16px 0;">
-            <h3 style="margin:0; font-weight:800; color:#f8fafc;">🏥 Telehealth Protocols, Maintenance & Retraining (FA-2 Step 8)</h3>
-            <p style="margin:3px 0 0 0; color:#94a3b8; font-size:0.88rem;">Clinical Standard Operating Procedures (SOPs), real-world deployment challenges, and continuous retraining pipelines.</p>
+            <h3 style="margin:0; font-weight:800;">🏥 Telehealth Protocols, Maintenance & Retraining (FA-2 Step 8)</h3>
+            <p style="margin:3px 0 0 0; color:#475569; font-size:0.88rem;">Clinical Standard Operating Procedures (SOPs), real-world deployment challenges, and continuous retraining pipelines.</p>
         </div>
         """,
         unsafe_allow_html=True

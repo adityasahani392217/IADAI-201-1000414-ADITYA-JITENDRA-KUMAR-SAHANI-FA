@@ -86,6 +86,10 @@
 >
 > Notice the clean, medical-grade interface featuring a Light/Dark theme switcher, candidate metadata for Aditya Sahani, and an **Info Dialog** linking directly to our Canva Storyboard.
 >
+> At the top of the interface, our real-time monitoring telemetry cards display **Total Activities Detected**, **Fall Detected Count**, **Normal Activity Count**, and **Prediction Confidence Score**.
+>
+> Below, our in-app **Clinical Evaluation & Architecture Expander** displays the 4-quadrant evaluation dashboard showing the Confusion Matrix, Accuracy Curve, Loss Curve, and F1 Breakdown, alongside visual HUD prediction samples.
+>
 > The system supports four distinct operational input modes:
 >
 > **1. Photo Mode:**
@@ -98,7 +102,7 @@
 > We can take an instant snapshot using our native webcam, demonstrating instant zero-latency inference.
 >
 > **4. Live WebRTC Stream:**
-> Finally, we start the live WebRTC camera feed. Notice full-duplex skeleton tracking at 30 FPS with real-time posture label overlays."
+> Finally, we start the live WebRTC camera feed. Notice full-duplex skeleton tracking in widescreen HD format with real-time posture label overlays."
 
 ---
 

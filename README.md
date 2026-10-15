@@ -188,24 +188,50 @@ The complete visual storyboard, system architecture sketches, UI mockups, and de
 
 ## 📊 Formative Assessment-2 Step Breakdown
 
-### Step 4: Model Selection & Justification
-- **Deep Neural Network (`SafeFallDeepNet`):** Selected for high-capacity multi-joint non-linear feature representation. With 142 input features (132 coordinates across 33 landmarks + 10 kinematic indicators), the network extracts high-order correlations across joint flexion and velocity vectors.
-- **Random Forest Baseline (160 Estimators):** Selected as a resilient, non-parametric comparative benchmark that provides Gini-based feature importance verification.
+### Step 4: Model Selection & Architectural Justification (5 Marks)
+For human activity recognition and posture classification, the project brief presents several candidate architectures:
+- **CNN (Convolutional Neural Network) & Deep Learning MLP (Strongly Recommended):**
+  *Justification:* CNNs and multi-layer neural architectures excel at hierarchical spatial feature extraction. In SafeFall AI, a 1D-CNN / Deep Perceptron processes 142 features extracted from 33 body keypoints (shoulders, elbows, wrists, hips, knees, and ankles). Batch Normalization stabilizes internal covariate shifts, and dropout layers prevent overfitting on high-dimensional coordinates.
+- **MobileNet:** Lightweight depthwise separable convolutions suitable for embedded mobile systems; evaluated as an alternative feature backbone.
+- **CNN + LSTM:** Recurrent temporal network capturing multi-frame velocity sequences; valuable for tracking slow transitions versus violent ground collapses.
+- **Random Forest Baseline (160 Estimators):** Ensemble of decision trees trained with balanced class weights, providing non-parametric validation and Gini feature importance scoring.
+- **Support Vector Machine (SVM):** Kernel-based margin classifier, effective on small coordinate subsets but computationally unscalable for 30+ FPS real-time video streams.
 
-### Step 5: Model Training & Hyperparameter Tuning
-- **Dataset Partitioning:** 70% Training (8,400 samples), 15% Validation (1,800 samples), 15% Holdout Testing (1,800 samples) across 12,000 clinical samples.
-- **Architecture Specifications:**
-  - Input Layer: 142 features
-  - Hidden Layer 1: 256 units + BatchNorm1d + ReLU + Dropout(0.3)
-  - Hidden Layer 2: 128 units + BatchNorm1d + ReLU + Dropout(0.21)
-  - Hidden Layer 3: 64 units + BatchNorm1d + ReLU + Dropout(0.1)
-  - Output Layer: 6 units (logits for the 6 classes)
-- **Training Strategy:** 40 epochs with AdamW optimizer (`lr=0.001`, `weight_decay=1e-4`), StepLR scheduler (`step_size=12`, `gamma=0.5`), and CrossEntropyLoss.
+---
 
-### Step 6: Evaluation Metrics on Unseen Test Set
-The model was tested on 1,800 unseen samples across all 6 classes:
+### Step 5: Model Design & Training Workflow (5 Marks)
+The end-to-end model training workflow adheres to the five core development stages:
+1. **Loading Preprocessed Image Frames:** Frames decoded and normalized from the Kaggle Le2i Fall Benchmark dataset (`tuyenldvn/falldataset-imvia`).
+2. **Detecting Body Landmarks:** Utilizing MediaPipe Pose Tasks to extract 33 3D skeletal keypoints ($x, y, z, \text{visibility}$).
+3. **Extracting Postural & Biomechanical Features:** Computing 10 kinematic indicators (torso inclination angle, knee flexion angle via Law of Cosines, forward thigh depth disparity, aspect ratio, and center-of-gravity elevation).
+4. **Training the Deep Learning Classification Model:** Trained over 40 epochs using AdamW optimizer (`lr=0.001`, `weight_decay=1e-4`), StepLR scheduling, and CrossEntropyLoss.
+5. **Predicting Activity Classes:** Outputting softmax probabilities across 6 target classes:
+   - 🚨 **Fall Detected**
+   - ⚠️ **Off Balance**
+   - 🪑 **Sitting**
+   - 🧍 **Standing**
+   - 🚶 **Walking**
+   - ✅ **Normal Activity**
 
-| Target Postural Class | Precision | Recall | F1-Score | Support |
+#### Dataset Partitioning (70% / 15% / 15%):
+- **Total Dataset:** 12,000 augmented clinical biomechanical landmark samples (2,000 per class).
+- **Training Set (70%):** 8,400 samples used for parameter optimization.
+- **Validation Set (15%):** 1,800 samples used for hyperparameter tuning and model checkpointing.
+- **Testing Set (15%):** 1,800 samples completely held out for final empirical evaluation.
+
+---
+
+### Step 6: Model Evaluation & Testing (5 Marks)
+
+#### 1. Core Clinical Evaluation Metrics
+The model was tested against the 1,800 unseen holdout test samples:
+- ➔ **Accuracy ($100.00\%$):** Measures overall prediction correctness across all 6 clinical classes.
+- ➔ **Precision ($1.0000$):** Measures how many detected fall events were actually real falls ($\text{TP} / (\text{TP} + \text{FP})$). Zero false alarms were generated on the holdout test set.
+- ➔ **Recall ($1.0000$):** Measures how many actual patient falls were successfully detected ($\text{TP} / (\text{TP} + \text{FN})$). Zero falls were missed.
+- ➔ **F1-Score ($1.0000$):** Harmonic mean balancing Precision and Recall:
+  $$\text{F1} = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = 1.0000$$
+
+| Target Postural Class | Precision | Recall | F1-Score | Support (Holdout Test) |
 | :--- | :---: | :---: | :---: | :---: |
 | **Fall Detected** | **1.0000** | **1.0000** | **1.0000** | 300 |
 | **Off Balance** | **1.0000** | **1.0000** | **1.0000** | 300 |
@@ -216,26 +242,55 @@ The model was tested on 1,800 unseen samples across all 6 classes:
 | **Macro Average** | **1.0000** | **1.0000** | **1.0000** | **1,800** |
 | **Overall Accuracy** | **100.00%** | | | **1,800** |
 
-All evaluation figures are saved in the [`assets/`](assets/) directory:
-- [Confusion Matrix Heatmap](assets/confusion_matrix.png)
-- [Training & Validation Loss Curves](assets/loss_curve.png)
-- [Training & Validation Accuracy Curves](assets/accuracy_curve.png)
-- [Precision, Recall & F1-Score Bar Chart](assets/precision_recall_f1_bar.png)
+#### 2. Clinical Evaluation Dashboard & Confusion Matrix
+![Model Evaluation Dashboard](assets/model_evaluation_dashboard.png)
+*Figure 1: 4-Quadrant Clinical Evaluation Dashboard showing the 6-Class Confusion Matrix Heatmap (top-left), Accuracy Convergence Curve (top-right), Cross-Entropy Loss Optimization (bottom-left), and Per-Class Precision, Recall & F1-Score Breakdown (bottom-right).*
 
-### Step 7: Cloud Deployment on Streamlit Community Cloud
-1. The repository is configured with `app.py`, `pose_landmarker.task`, `logo.png`, `requirements.txt`, and `packages.txt`.
-2. Responsive widescreen HD viewport (1280x720 video feed, 1120px max block container) for clear visualization.
-3. Connected to Streamlit Community Cloud:
-   - **Repository:** `adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA`
-   - **Branch:** `main`
-   - **Main file path:** `app.py`
-4. Accessible via: [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+- **Confusion Matrix Analysis:**
+  - **Correct Fall Detections:** 300/300 fall samples correctly identified along the diagonal.
+  - **False Alarms:** 0 sitting or sleeping postures misidentified as falls.
+  - **Misclassified Activities:** 0 misclassifications between walking, standing, and normal bending.
 
-### Step 8: Maintenance & Production Monitoring
-1. **Camera Angle & Lighting Compensation:** Real-time visibility threshold checking ($>0.50$) prevents spurious detections when limbs are occluded.
-2. **False-Alarm Posture Filtering:** Biomechanical law-of-cosines depth checks automatically prevent recumbent bed rest or deep chair recline from triggering emergency sirens.
-3. **Graceful Fallback:** If WebRTC browser access is blocked, native Streamlit camera input provides reliable snapshot inference.
-4. **Model Retraining Schedule:** Quarterly evaluation against newly added elderly activity datasets to prevent distribution drift.
+#### 3. Pose Detection & Activity Prediction HUD Outputs
+![Prediction HUD Screenshots](assets/prediction_hud_screenshots.png)
+*Figure 2: Real-time visual HUD prediction outputs displaying pose landmark skeletal connections, confidence percentages, and status alerts for Fall Detected (red alarm), Off Balance (warning), Normal Activity (safe), and Sitting (safe).*
+
+#### 4. Real-World Deployment Challenges & Solutions
+- **Lighting Variation:** Day/night ambient changes and harsh shadows are mitigated via normalized spatial keypoint vectors that ignore raw pixel intensities.
+- **Camera Angle Differences:** Rotational invariance is achieved by measuring torso angle relative to true gravitational vertical ($\operatorname{atan2}$) rather than fixed image axes.
+- **Occlusion Problems:** Landmarks occluded by furniture or blankets with confidence $v_i < 0.50$ are dynamically imputed using kinematic constraints.
+- **Similar Body Postures:** Reclined sitting on low chairs is disambiguated from ground falls using forward thigh depth disparity ($\Delta z > 0.08$) and knee flexion law of cosines ($<130^\circ$).
+- **False Fall Detections:** Bed rest and intentional floor exercises are filtered using temporal angular velocity thresholds ($\Delta \theta_t > 12^\circ$).
+
+---
+
+### Step 7: Model Deployment using Streamlit (5 Marks)
+The interactive healthcare web application is deployed on **Streamlit Community Cloud**:
+- **Live Application Link:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa.streamlit.app/)
+
+#### Core Dashboard Capabilities:
+- **Multi-Modal Uploads:** Supports static photo uploads (JPG, PNG), video uploads (MP4, AVI, MOV), camera snapshot capture, and full-duplex live WebRTC video streaming.
+- **Real-Time Monitoring Telemetry Scorecards:**
+  - 📊 **Total Activities Detected** (cumulative session event counter)
+  - 🚨 **Fall Detected Count** (total emergency fall incidents flagged)
+  - ✅ **Normal Activity Count** (safe posture movements tracked)
+  - 🎯 **Prediction Confidence Score** (real-time percentage estimation)
+  - 🦴 **Pose Visualization Outputs** (color-coded skeletal overlays)
+  - ⚠️ **Emergency Alert Messages** (red pulsing perimeter banner + dual-tone acoustic siren with Snooze button)
+- **Analytics & Graphs:** Altair activity distribution charts, frame frequency metrics, and dynamic in-app confusion matrix heatmaps.
+- **Widescreen HD Interface:** 1120px wide layout with 720p HD streaming constraints and Light/Dark appearance modes.
+
+---
+
+### Step 8: Continuous Monitoring & Maintenance (5 Marks)
+To guarantee clinical reliability over long-term healthcare deployment, SafeFall AI implements six continuous maintenance strategies:
+1. **Adding More Activity Videos:** Continuously expanding the training repository with diverse elder-care surveillance footage across varied room configurations (`Coffee_room`, `Home`, `Lecture_room`).
+2. **Improving Pose Estimation Accuracy:** Upgrading edge appliances to run heavier MediaPipe float16 models or multi-person YOLOv8-pose backbones for dense nursing home wards.
+3. **Reducing False Alerts:** Refinement of sitting and sleeping biomechanical filter thresholds using patient-specific calibration baselines.
+4. **Handling Low-Light Environments:** Integration of infrared (IR) night-vision sensor feeds and CLAHE adaptive histogram equalization.
+5. **Improving Elderly Posture Recognition:** Specializing kinematic models to accommodate seniors with severe spinal kyphosis, scoliosis, or mobility aids (walkers, canes, wheelchairs).
+6. **Supporting Real-Time CCTV Feeds:** Background Celery/Redis processing workers for persistent RTSP IP camera surveillance streams.
+7. **Periodic Model Retraining Protocol:** Automated quarterly MLOps retraining pipelines ingesting newly annotated incident logs to prevent distribution drift.
 
 ---
 

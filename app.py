@@ -73,8 +73,9 @@ def initialize_session_defaults() -> None:
 
     if "active_user" not in st.session_state and not st.session_state.get("_signed_out", False):
         st.session_state["active_user"] = {
-            "name": "Clinical Evaluator",
-            "email": "demo@safefall.ai",
+            "name": "Aditya Sahani",
+            "email": "1000414@safefall.ai",
+            "id": "1000414",
             "guest": False
         }
 
@@ -114,8 +115,8 @@ def main() -> None:
         )
 
         # Operator Profile Card
-        initials = "".join(part[0] for part in current_user["name"].split()[:2]).upper() or "U"
-        account_type = "Guest Evaluator" if current_user.get("guest") else "Clinical Staff"
+        initials = "".join(part[0] for part in current_user["name"].split()[:2]).upper() or "AS"
+        account_type = f"Lead Investigator &bull; ID: {current_user.get('id', '1000414')}"
 
         st.markdown(
             f'<div class="sidebar-profile">'
@@ -129,33 +130,70 @@ def main() -> None:
         )
 
         current_page = st.session_state.get("nav_page", "Live Monitor")
-        page_labels = {
-            "Live Monitor": "📹 Live Camera",
-            "Photo": "📷 Photo Analysis",
-            "Video": "🎥 Video Analysis",
-            "Snapshot": "📸 Camera Snapshot",
-            "Emergency SOS": "🚨 Emergency SOS",
-            "Overview": "📊 System Overview",
-            "Settings": "⚙️ Settings"
+
+        # Interactive Sidebar Navigation Bar
+        sidebar_pages = [
+            "📹 Live Camera",
+            "📷 Photo Analysis",
+            "🎥 Video Analysis",
+            "📸 Camera Snapshot",
+            "🚨 Emergency SOS",
+            "📊 System Overview",
+            "📈 Model Insights",
+            "📁 Dataset",
+            "📜 Incident History",
+            "⚙️ Settings"
+        ]
+        sidebar_mapping = {
+            "📹 Live Camera": "Live Monitor",
+            "📷 Photo Analysis": "Photo",
+            "🎥 Video Analysis": "Video",
+            "📸 Camera Snapshot": "Snapshot",
+            "🚨 Emergency SOS": "Emergency SOS",
+            "📊 System Overview": "Overview",
+            "📈 Model Insights": "Model Insights",
+            "📁 Dataset": "Dataset",
+            "📜 Incident History": "History",
+            "⚙️ Settings": "Settings"
         }
-        active_label = page_labels.get(current_page, "📹 Live Camera")
+        reverse_sidebar_mapping = {v: k for k, v in sidebar_mapping.items()}
+        current_sidebar_label = reverse_sidebar_mapping.get(current_page, "📹 Live Camera")
+        sidebar_idx = sidebar_pages.index(current_sidebar_label) if current_sidebar_label in sidebar_pages else 0
+
         st.markdown(
-            f'<div style="margin: 12px 0 6px 0; padding: 10px 14px; border-radius: 10px; background: rgba(var(--ar), 0.08); border: 1px solid var(--border-accent)">'
-            f'<div style="font-size:0.70rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em">Active Workspace</div>'
-            f'<div style="font-size:0.95rem; font-weight:700; color:var(--text-primary); margin-top:2px">{active_label}</div>'
-            f'</div>',
+            '<div style="font-size:0.72rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin:14px 0 6px 0">Navigation Bar</div>',
             unsafe_allow_html=True
         )
+        chosen_sidebar_label = st.radio(
+            "Sidebar Navigation",
+            sidebar_pages,
+            index=sidebar_idx,
+            label_visibility="collapsed",
+            key="sidebar_navigation_radio"
+        )
+        if sidebar_mapping.get(chosen_sidebar_label) != current_page:
+            st.session_state["nav_page"] = sidebar_mapping[chosen_sidebar_label]
+            st.rerun()
 
         # System Health & Hardware Info Chips
         st.markdown(
-            f'<div style="margin-top:20px; padding-top:14px; border-top:1px solid var(--border-subtle)">'
+            f'<div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle)">'
             f'<div style="font-size:0.72rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px">System Telemetry</div>'
             f'<div style="display:flex; flex-direction:column; gap:6px">'
             f'<span class="badge" style="width:100%; justify-content:flex-start"><span class="status-dot"></span>Device: {str(coordinator.device).upper()}</span>'
             f'<span class="badge" style="width:100%; justify-content:flex-start">{"DeepNet + RF Ensemble (FA-2)" if getattr(coordinator, "is_trained_ensemble", False) else ("BiLSTM Neural Model" if coordinator.is_trained_4class else "Rule Kinematics Engine")}</span>'
             f'<span class="badge" style="width:100%; justify-content:flex-start">YOLOv8 Pose &bull; 30 FPS</span>'
             f'</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
+        # Quick Documentation & Presentation Links
+        st.markdown(
+            f'<div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px">'
+            f'<a href="https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/" target="_blank" style="text-decoration:none; font-size:0.80rem; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:6px">🚀 Live Streamlit App ↗</a>'
+            f'<a href="https://canva.link/7iadcf1w4rsmwx3" target="_blank" style="text-decoration:none; font-size:0.80rem; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:6px">🎨 Canva Storyboard ↗</a>'
+            f'<a href="https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb" target="_blank" style="text-decoration:none; font-size:0.80rem; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:6px">📓 Google Colab Notebook ↗</a>'
             f'</div>',
             unsafe_allow_html=True
         )

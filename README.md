@@ -1,11 +1,22 @@
 # 🛡️ SafeFall AI: Real-Time Human Posture & Fall Detection System
 ### Comprehensive Deep Learning & Biomechanical Vision Pipeline (FA-2 Solution)
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/)
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red)](https://pytorch.org/)
-[![YOLOv8 Pose](https://img.shields.io/badge/YOLOv8-17%20Keypoints-green)](https://github.com/ultralytics/ultralytics)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
+[![Storyboard Canva](https://img.shields.io/badge/Canva-Storyboard%20Presentation-00C4CC?logo=canva&logoColor=white)](https://canva.link/7iadcf1w4rsmwx3)
+[![Kaggle Dataset](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
+[![GitHub Source](https://img.shields.io/badge/GitHub-Repository-181717?logo=github&logoColor=white)](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
+
+---
+
+### 🌐 Live Deployment & Project Links
+- **🚀 Live Streamlit Web Application:** [https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/](https://iadai-201-1000414-aditya-jitendra-kumar-sahani-fa-2.streamlit.app/)
+- **🎨 Interactive Presentation & Storyboard (Canva):** [https://canva.link/7iadcf1w4rsmwx3](https://canva.link/7iadcf1w4rsmwx3)
+- **📓 Google Colab Training Notebook:** [Open in Google Colab](https://colab.research.google.com/github/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA/blob/main/SafeFall_AI_Elderly_Fall_Detection_FA2.ipynb)
+- **📦 Kaggle Le2i Fall Detection Dataset:** [tuyenldvn/falldataset-imvia](https://www.kaggle.com/datasets/tuyenldvn/falldataset-imvia/data)
+- **🐙 GitHub Source Repository:** [https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA](https://github.com/adityasahani392217/IADAI-201-1000414-ADITYA-JITENDRA-KUMAR-SAHANI-FA)
+
+---
 
 **SafeFall AI** is an enterprise-grade, privacy-first computer vision and deep learning system engineered for non-invasive patient monitoring, automated fall detection, and rapid emergency dispatch in geriatric care, hospitals, and assisted-living residences.
 
